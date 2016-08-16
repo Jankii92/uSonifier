@@ -28,6 +28,9 @@ int main(void){
 	cv::Mat right( HEIGHT, WIDTH, CV_8UC1 );
 	cv::Mat rightOut( HEIGHT, WIDTH, CV_8UC1 );
 	
+	cv::Mat disp( HEIGHT, WIDTH, CV_8UC1 );
+	cv::Mat dispOut( HEIGHT, WIDTH, CV_8UC1 );
+	
 	setImageForCuda(left, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(right, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(leftOut, sizeof(unsigned char)*WIDTH*HEIGHT);	
@@ -56,8 +59,8 @@ int main(void){
 		cameraCtrl.Update();
 		
 		auto start_blur = std::chrono::system_clock::now();
-   		blurmj(left, leftOut, 11);
-   		blurmj(right, rightOut, 11);
+   		blurmj(left, leftOut, 5);
+   		blurmj(right, rightOut, 5);
    		//blur(left, leftOut, Size(11,11));
    		//blur(right, rightOut, Size(11,11));
 		auto end_blur = std::chrono::system_clock::now();

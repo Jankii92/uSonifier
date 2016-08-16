@@ -21,7 +21,8 @@ cuda_add_library( Scene "${CMAKE_CURRENT_SOURCE_DIR}/src/Scene/Scene.cpp" )
 cuda_add_library( CSoundManager "${CMAKE_CURRENT_SOURCE_DIR}/src/CSoundManager/CSoundManager.cpp" )
 cuda_add_library( Cuda "${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda/cuda.cu" )
 cuda_add_library( CudaMJ "${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda/cudamj.cpp" )
+cuda_add_library( ImprocMJ "${CMAKE_CURRENT_SOURCE_DIR}/src/Cuda/improc.cu" )
 
 
-target_link_libraries(${ProjectName} CameraCtrl CSoundManager Scene Obstacle CudaMJ Cuda ${OpenCV_LIBS} ${DUO_LIBRARY} ${Csound1_LIBS} ${Csound2_LIBS}) 
+target_link_libraries(${ProjectName} CameraCtrl CSoundManager Scene Obstacle CudaMJ Cuda ImprocMJ ${OpenCV_LIBS} ${DUO_LIBRARY} ${Csound1_LIBS} ${Csound2_LIBS}) 
 add_definitions("-DUSE_DOUBLE")

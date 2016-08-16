@@ -28,10 +28,16 @@ int main(void){
 	cv::Mat right( HEIGHT, WIDTH, CV_8UC1 );
 	cv::Mat rightOut( HEIGHT, WIDTH, CV_8UC1 );
 	
+	cv::Mat disp( HEIGHT, WIDTH, CV_8UC1 );
+	cv::Mat dispOut( HEIGHT, WIDTH, CV_8UC1 );
+	
 	setImageForCuda(left, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(right, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(leftOut, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(rightOut, sizeof(unsigned char)*WIDTH*HEIGHT);
+	
+	setImageForCuda(disp, sizeof(unsigned char)*WIDTH*HEIGHT);	
+	setImageForCuda(dispOut, sizeof(unsigned char)*WIDTH*HEIGHT);
 	
 	SetGain(0);
 	SetExposure(20);

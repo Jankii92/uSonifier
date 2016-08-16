@@ -1,10 +1,6 @@
 #include "cudamj.hpp"
 #include "chrono"
 
-
-void cv::gpu::test(){
-	cv::gpu::mj::test();
-}
 void cv::gpu::blurmj(Mat &src, Mat &out, const int k){
 		auto start = std::chrono::system_clock::now();
 		unsigned char* data = src.data;

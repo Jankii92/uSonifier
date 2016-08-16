@@ -11,7 +11,7 @@ void cv::gpu::blurmj(Mat &src, Mat &out, const int k){
 		unsigned char* dataOut = out.data;
 		
 		auto stop1 = std::chrono::system_clock::now();
-		cv::gpu::mj::blur(src.size().height, src.size().width, k, data, dataOut);
+		cv::gpu::mj::blur(480, 640, k, data, dataOut);
 		auto stop2 = std::chrono::system_clock::now();
 		auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start);
 		auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - stop1);
