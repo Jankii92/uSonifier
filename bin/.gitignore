@@ -11,6 +11,9 @@
 **/*.cmake
 **/*.tlog
 **/CMakefiles
+**/Makefile
+**/CMakeCache.txt
+**/CMakeFiles/
 
 
 #######################################
