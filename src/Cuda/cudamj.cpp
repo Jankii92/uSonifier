@@ -22,6 +22,18 @@ void cv::gpu::sobelmj(Mat &src, Mat &out, const int mode){
 		
 }
 
+
+void cv::gpu::rectifmj(Mat &L, Mat &R, Mat&Out){
+		unsigned char* dataL = L.data;
+		unsigned char* dataR = R.data;
+		unsigned char* data = Out.data;
+		//unsigned char* dataOut = out.data;
+		cv::gpu::mj::rectif(480, 640, dataL, dataR, dataL, dataR, data);
+}
+
+
+			
+
 void cv::gpu::realocHostMem(Mat &in){
 	unsigned char* img =  in.data;
 	int sizec =  (int)(sizeof(unsigned char)*in.size().height*in.size().width);

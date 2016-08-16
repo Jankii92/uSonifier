@@ -9,6 +9,7 @@ namespace cv{
 		void realocHostMem(Mat &in);
 		void setImageForCuda(Mat &mat, int size);
 		void cpyImageForCuda(unsigned char* src, Mat &dest);
+		void rectifmj(Mat &L, Mat &R, Mat &Out);
 	
 	}
 }

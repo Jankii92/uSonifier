@@ -64,10 +64,11 @@ int main(void){
 		auto start_blur = std::chrono::system_clock::now();
    		//blurmj(left, leftOut, 5);
    		//blurmj(right, rightOut, 5);
-   		sobelmj(left, leftOut, 1);
-   		sobelmj(right, rightOut, 1);
+   		rectifmj(left, right, disp);
+   		//sobelmj(left, leftOut, 0);
+   		//sobelmj(right, rightOut, 0);
 		auto end_blur = std::chrono::system_clock::now();
-		imshow("Left", leftOut);
+		imshow("Left", disp);
 		imshow("Right", rightOut);
   		
 		counter++;

@@ -5,12 +5,28 @@
 
 #include <iostream>
 
-
+#define PI 3.14159265
 #define WIDTH	640
 #define HEIGHT	480
 
 
 using namespace std;
+
+
+int calcSum(unsigned char *src){
+	
+	int xh = 480/2;
+	int yh = 640/2;
+	int sum = 0;
+	for( int x = xh-50; x < xh+50 ; x++){
+		for( int y = yh-50; y < yh+50 ; y++){
+			sum+=src[y*640+x];
+		}
+	}
+	return sum;
+
+
+}
 
 
 void cv::gpu::mj::blur(const int rows,const int cols, const int k, const unsigned char *src, unsigned char* dst){
@@ -60,6 +76,8 @@ void cv::gpu::mj::sobel(const int rows,const int cols, const unsigned char *src,
 	int M = HEIGHT;
 	
 	unsigned char* gpudataSrc;
+	
+	unsigned char* gpudataMid;
 	unsigned char* gpudataOut;
 	
 	const int size = sizeof(unsigned char)*rows*cols;
@@ -67,17 +85,101 @@ void cv::gpu::mj::sobel(const int rows,const int cols, const unsigned char *src,
 	
 	cudaMalloc((void **)&gpudataSrc, size);
 	cudaMalloc((void **)&gpudataOut, size);
+	cudaMalloc((void **)&gpudataMid, size);
 	
 	cudaMemcpyAsync(gpudataSrc, src, size, cudaMemcpyHostToDevice);
 	
 	dim3 threadsPerBlock(32,32);
 	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataOut, mode);
-	//blur_noShare_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut );
+	
+	cout<<"MAT!!!!!!!"<<endl;
+
+	float angle = -2.0f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
 	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = -1.5f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = 1.0f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = 0.5f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = 0.0f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = 0.5f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	angle = 0.0f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
+	
+	cudaFree(gpudataMid);
 	cudaFree(gpudataSrc);
 	cudaFree(gpudataOut);
 }
+
+void cv::gpu::mj::rectif(const int rows,const int cols, const unsigned char *srcL, const unsigned char *srcR, unsigned char *dstL, unsigned char *dstR, unsigned char * out){
+	
+	int N = WIDTH;
+	int M = HEIGHT;
+	
+	unsigned char* gpudataSrcL;
+	unsigned char* gpudataSrcR;
+	unsigned char* gpudataOutL;
+	unsigned char* gpudataOutR;
+	unsigned char* gpudataOut;
+		
+	const int size = sizeof(unsigned char)*rows*cols;
+		
+	
+	cudaMalloc((void **)&gpudataSrcL, size);
+	cudaMalloc((void **)&gpudataOutL, size);
+	cudaMalloc((void **)&gpudataSrcR, size);
+	cudaMalloc((void **)&gpudataOutR, size);
+	cudaMalloc((void **)&gpudataOut, size);
+	
+	cudaMemcpy(gpudataSrcL, srcL, size, cudaMemcpyHostToDevice);
+	cudaMemcpy(gpudataSrcR, srcR, size, cudaMemcpyHostToDevice);
+	
+	dim3 threadsPerBlock(32,32);
+	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
+	
+	//cout<<"MAT!!!!!!!"<<endl;
+
+	float angle = 0.0f;
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrcR, gpudataOutR, 0);
+	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrcL, gpudataOutL, angle*PI/180);
+	cudaMemcpyAsync(dstL, gpudataOutL, size, cudaMemcpyDeviceToHost);
+	cudaMemcpyAsync(dstR, gpudataOutR, size, cudaMemcpyDeviceToHost);
+
+	blend_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols,  gpudataOutL,  gpudataOutR, gpudataOut, 0.5f);
+	
+	cudaMemcpy(out, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cudaFree(gpudataSrcL);
+	cudaFree(gpudataOutL);
+	cudaFree(gpudataSrcR);
+	cudaFree(gpudataOutR);
+	cudaFree(gpudataOut);
+}
+
+
 
 void cv::gpu::mj::realocHostMem(int sizec, unsigned char *img){
 	unsigned char* cpudataSrc;
@@ -96,6 +198,7 @@ void cv::gpu::mj::cudaMemcpyHtoH(unsigned char *src, unsigned char *dest, int si
 	//cudaMallocHost 	((void **)&dest,size);
 	cudaMemcpy(dest, src, size, cudaMemcpyHostToHost);	
 }
+
 
 
 

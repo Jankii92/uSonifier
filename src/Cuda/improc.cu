@@ -1,4 +1,5 @@
 #include "improc.h"
+#include <math.h>
 
 
 __global__ void blur_GPU(const int rows,const  int cols, const int k, const unsigned char *img, unsigned char *result){
@@ -66,8 +67,8 @@ __global__ void blur_noShare_GPU( const int rows, const int cols,const int k, co
 
 
 __global__ void rectify_GPU (const int rows, const int cols, const unsigned char *imgL,const unsigned char *imgR, int *rot){
-		int x = blockIdx.x * blockDim.x + threadIdx.x;
-    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+		//int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	//int y = blockIdx.y * blockDim.y + threadIdx.y;
     	
 }
 
@@ -135,5 +136,32 @@ __global__ void sobel_abs_GPU (const int rows, const int cols, const unsigned ch
     	}    	
 }
 
+__global__ void rotate_GPU (const int rows, const int cols, const unsigned char *img, unsigned char *des, float deg){
+		//int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	//int y = blockIdx.y * blockDim.y + threadIdx.y;
+    	
+    	//if(x < 0  || x > cols || y <= 1 || y >= rows-1) return;
+    	
+    	int i = blockIdx.x * blockDim.x + threadIdx.x;// Kernel definition
+    	int j = blockIdx.y * blockDim.y + threadIdx.y;
+    	int xc = cols - cols/2;
+    	int yc = rows - rows/2;
+    	int newx = ((float)i-xc)*cos(deg) - ((float)j-yc)*sin(deg) + xc;
+    	int newy = ((float)i-xc)*sin(deg) + ((float)j-yc)*cos(deg) + yc;
+		if (newx >= 0 && newx < cols && newy >= 0 && newy < rows)
+		{
+		    des[j*cols+i] = img[newy*cols+newx];
+		}
+}
+
+
+__global__ void blend_GPU (const int rows, const int cols, const unsigned char *img1, const unsigned char *img2, unsigned char *dest, const float blend){
+	int x = blockIdx.x * blockDim.x + threadIdx.x;// Kernel definition
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	if(x < 0  || x > cols || y < 0 || y > rows) return;
+	
+	dest[y*cols+x] = (unsigned char)(blend*img1[y*cols+x])+(unsigned char)((1-blend)*img2[y*cols+x]); 
+}
 
 
