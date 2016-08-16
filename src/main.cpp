@@ -62,10 +62,10 @@ int main(void){
 		cameraCtrl.Update();
 		
 		auto start_blur = std::chrono::system_clock::now();
-   		blurmj(left, leftOut, 5);
-   		blurmj(right, rightOut, 5);
-   		//blur(left, leftOut, Size(11,11));
-   		//blur(right, rightOut, Size(11,11));
+   		//blurmj(left, leftOut, 5);
+   		//blurmj(right, rightOut, 5);
+   		sobelmj(left, leftOut, 1);
+   		sobelmj(right, rightOut, 1);
 		auto end_blur = std::chrono::system_clock::now();
 		imshow("Left", leftOut);
 		imshow("Right", rightOut);

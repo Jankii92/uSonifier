@@ -15,6 +15,13 @@ void cv::gpu::blurmj(Mat &src, Mat &out, const int k){
 		
 }
 
+void cv::gpu::sobelmj(Mat &src, Mat &out, const int mode){
+		unsigned char* data = src.data;
+		unsigned char* dataOut = out.data;
+		cv::gpu::mj::sobel(480, 640, data, dataOut, mode);
+		
+}
+
 void cv::gpu::realocHostMem(Mat &in){
 	unsigned char* img =  in.data;
 	int sizec =  (int)(sizeof(unsigned char)*in.size().height*in.size().width);

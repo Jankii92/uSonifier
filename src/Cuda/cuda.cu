@@ -53,8 +53,30 @@ void cv::gpu::mj::blur(const int rows,const int cols, const int k, const unsigne
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start1);
 	
     //cout<<(int)duration1.count()<<" "<<(int)duration2.count()<<" " <<(int)duration3.count()<<" " <<(int)duration4.count()<<" " <<(int)duration.count()<< endl;
-
+}
+void cv::gpu::mj::sobel(const int rows,const int cols, const unsigned char *src, unsigned char* dst, int mode){
 	
+	int N = WIDTH;
+	int M = HEIGHT;
+	
+	unsigned char* gpudataSrc;
+	unsigned char* gpudataOut;
+	
+	const int size = sizeof(unsigned char)*rows*cols;
+		
+	
+	cudaMalloc((void **)&gpudataSrc, size);
+	cudaMalloc((void **)&gpudataOut, size);
+	
+	cudaMemcpyAsync(gpudataSrc, src, size, cudaMemcpyHostToDevice);
+	
+	dim3 threadsPerBlock(32,32);
+	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataOut, mode);
+	//blur_noShare_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut );
+	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	cudaFree(gpudataSrc);
+	cudaFree(gpudataOut);
 }
 
 void cv::gpu::mj::realocHostMem(int sizec, unsigned char *img){

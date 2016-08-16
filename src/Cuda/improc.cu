@@ -63,3 +63,77 @@ __global__ void blur_noShare_GPU( const int rows, const int cols,const int k, co
 	}while(xx++ < x+r);
 	result[t] = (unsigned int)(sum/rr);	
 }
+
+
+__global__ void rectify_GPU (const int rows, const int cols, const unsigned char *imgL,const unsigned char *imgR, int *rot){
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    	
+}
+
+__global__ void sobel_GPU (const int rows, const int cols, const unsigned char *img, unsigned char *des, const int mode){
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    	
+    	if(x <= 1 || x >= cols-1 || y <= 1 || y >= rows-1) return;
+    	int sum = 0;
+    	if(mode == 0) {
+    		sum-=img[(y-1)*cols+(x-1)];
+    		//sum+=((int)img[(y-1)*cols+(x)]*sX[1];
+    		sum+=img[(y-1)*cols+(x+1)];
+    		sum-=(int)img[(y)*cols+(x-1)]*2;
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
+    		sum+=(int)img[(y)*cols+(x+1)]*2;
+    		sum-=img[(y+1)*cols+(x-1)];
+    		//sum+=((int)img[(y+1)*cols+(x)]*sX[7];
+    		sum+=img[(y+1)*cols+(x+1)];
+    		des[y*cols+x] = (unsigned char)(sum/9+128);
+    	}else if(mode == 1){
+    		sum+=img[(y-1)*cols+(x-1)];
+    		sum+=(int)img[(y-1)*cols+(x)]*2;
+    		sum+=img[(y-1)*cols+(x+1)];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[3];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[5];
+    		sum-=img[(y+1)*cols+(x-1)];
+    		sum-=(int)img[(y+1)*cols+(x)]*2;
+    		sum-=img[(y+1)*cols+(x+1)];
+    		des[y*cols+x] = (unsigned char)(sum/9+128);
+    	}    	
+}
+
+__global__ void sobel_abs_GPU (const int rows, const int cols, const unsigned char *img, unsigned char *des, const int mode){
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+    	
+    	if(x <= 1 || x >= cols-1 || y <= 1 || y >= rows-1) return;
+    	int sum = 0;
+    	if(mode == 0) {
+    		sum-=img[(y-1)*cols+(x-1)];
+    		//sum+=((int)img[(y-1)*cols+(x)]*sX[1];
+    		sum+=img[(y-1)*cols+(x+1)];
+    		sum-=(int)img[(y)*cols+(x-1)]*2;
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
+    		sum+=(int)img[(y)*cols+(x+1)]*2;
+    		sum-=img[(y+1)*cols+(x-1)];
+    		//sum+=((int)img[(y+1)*cols+(x)]*sX[7];
+    		sum+=img[(y+1)*cols+(x+1)];
+    		if(sum < 0) des[y*cols+x] = 2*(unsigned char)(-sum/9);
+    		else des[y*cols+x] = 2*(unsigned char)(sum/9);
+    	}else if(mode == 1){
+    		sum+=img[(y-1)*cols+(x-1)];
+    		sum+=(int)img[(y-1)*cols+(x)]*2;
+    		sum+=img[(y-1)*cols+(x+1)];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[3];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
+    		//sum+=((int)img[(y)*cols+(x-1)]*sX[5];
+    		sum-=img[(y+1)*cols+(x-1)];
+    		sum-=(int)img[(y+1)*cols+(x)]*2;
+    		sum-=img[(y+1)*cols+(x+1)];
+    		if(sum < 0) des[y*cols+x] = (unsigned char)(-sum/9);
+    		else des[y*cols+x] = (unsigned char)(sum/9);
+    	}    	
+}
+
+
+

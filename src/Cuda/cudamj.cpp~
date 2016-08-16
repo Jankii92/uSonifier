@@ -1,10 +1,6 @@
 #include "cudamj.hpp"
 #include "chrono"
 
-
-void cv::gpu::test(){
-	cv::gpu::mj::test();
-}
 void cv::gpu::blurmj(Mat &src, Mat &out, const int k){
 		auto start = std::chrono::system_clock::now();
 		unsigned char* data = src.data;
@@ -16,6 +12,13 @@ void cv::gpu::blurmj(Mat &src, Mat &out, const int k){
 		auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start);
 		auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - stop1);
 		//cout<<(int)duration1.count()<<" "<<(int)duration2.count()<< endl;
+		
+}
+
+void cv::gpu::blurmj(Mat &src, Mat &out, const int mode){
+		unsigned char* data = src.data;
+		unsigned char* dataOut = out.data;
+		cv::gpu::mj::sobel(480, 640, data, dataOut, mode);
 		
 }
 
