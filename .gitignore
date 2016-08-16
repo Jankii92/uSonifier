@@ -12,14 +12,9 @@
 **/*.tlog
 **/CMakefiles
 
-**/bin/CMakefiles
+**/bin/CMakefiles/
 
 #######################################
 # Application
 #######################################
 
-!/SoV
-/SoV/*
-!/SoV/Config
-!/SoV/Resources
-!/SoV/Source

@@ -1,0 +1,2 @@
+/usr/bin/ar cr libCudaMJ.a  CMakeFiles/CudaMJ.dir/src/Cuda/cudamj.cpp.o
+/usr/bin/ranlib libCudaMJ.a
