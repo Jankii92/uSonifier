@@ -12,8 +12,7 @@
 **/*.tlog
 **/CMakefiles
 
-#**/bin/CMakefiles/
-!/bin/
+#!/bin/*
 
 #######################################
 # Application
