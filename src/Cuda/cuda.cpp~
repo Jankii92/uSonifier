@@ -1,0 +1,8 @@
+#include "cuda.h"
+
+void cv::gpu::cudamj::test(const GpuMat& src, GpuMat& dst){
+
+	
+
+
+}
