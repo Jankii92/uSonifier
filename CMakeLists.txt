@@ -13,7 +13,7 @@ cuda_add_executable(${ProjectName} ${Project_SRC})
 
 set(Csound1_LIBS libcsound64.so)
 set(Csound2_LIBS libcsnd6.so)
-set(DUO_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/bin/libDUO.so)
+set(DUO_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/lib/libDUO.so)
 
 cuda_add_library( CameraCtrl "${CMAKE_CURRENT_SOURCE_DIR}/src/PID/cameractrl.cpp" )
 cuda_add_library( Obstacle "${CMAKE_CURRENT_SOURCE_DIR}/src/Scene/Obstacle.cpp" )
