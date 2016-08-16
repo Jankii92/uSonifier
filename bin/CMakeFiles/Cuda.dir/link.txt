@@ -1,2 +1,0 @@
-/usr/bin/ar cr libCuda.a  CMakeFiles/Cuda.dir/src/Cuda/./Cuda_generated_cuda.cu.o
-/usr/bin/ranlib libCuda.a

@@ -1,7 +1,0 @@
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/CSoundManager.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/CameraCtrl.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/Cuda.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/CudaMJ.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/DispToSonif.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/Obstacle.dir
-/home/ubuntu/Documents/Git/uSonifier/bin/CMakeFiles/Scene.dir

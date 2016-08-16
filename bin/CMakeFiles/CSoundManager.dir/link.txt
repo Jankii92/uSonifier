@@ -1,2 +1,0 @@
-/usr/bin/ar cr libCSoundManager.a  CMakeFiles/CSoundManager.dir/src/CSoundManager/CSoundManager.cpp.o
-/usr/bin/ranlib libCSoundManager.a

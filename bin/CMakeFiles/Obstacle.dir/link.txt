@@ -1,2 +1,0 @@
-/usr/bin/ar cr libObstacle.a  CMakeFiles/Obstacle.dir/src/Scene/Obstacle.cpp.o
-/usr/bin/ranlib libObstacle.a
