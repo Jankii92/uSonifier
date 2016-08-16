@@ -1,0 +1,25 @@
+# General
+
+**/*.*~
+**/*.patch
+**/*.log
+
+# Compiled files
+**/*.a
+
+# Cmake build system
+**/*.cmake
+**/*.tlog
+**/CMakefiles
+
+**/bin/CMakefiles
+
+#######################################
+# Application
+#######################################
+
+!/SoV
+/SoV/*
+!/SoV/Config
+!/SoV/Resources
+!/SoV/Source
