@@ -4,9 +4,10 @@
 #include "CSoundManager/CSoundManager.h"
 #include "duo.h"
 #include <chrono>
+#include <cuda_runtime.h>
 
 
-#define FPS		30
+#define FPS		25
 
 using namespace cv::gpu;
 
@@ -39,6 +40,13 @@ int main(void){
 	setImageForCuda(disp, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(dispOut, sizeof(unsigned char)*WIDTH*HEIGHT);
 	
+	unsigned char* g_imgL;
+	unsigned char* g_imgR;
+	unsigned char* g_disp;
+	
+	cudaInit(&g_imgL, &g_imgR, &g_disp, HEIGHT, WIDTH);
+	
+	
 	SetGain(0);
 	SetExposure(20);
 	SetLed(0);
@@ -48,6 +56,7 @@ int main(void){
 	
 	namedWindow( "Left", WINDOW_AUTOSIZE );
 	namedWindow( "Right", WINDOW_AUTOSIZE );
+	namedWindow( "Disp", WINDOW_AUTOSIZE );
 	auto start = std::chrono::system_clock::now();
 	while((cvWaitKey(1) & 0xff) != 27)
 	{
@@ -61,15 +70,16 @@ int main(void){
 		
 		cameraCtrl.Update();
 		
+		imshow("Left",left);
+		imshow("Right", right);
 		auto start_blur = std::chrono::system_clock::now();
-   		//blurmj(left, leftOut, 5);
-   		//blurmj(right, rightOut, 5);
-   		rectifmj(left, right, disp);
-   		//sobelmj(left, leftOut, 0);
-   		//sobelmj(right, rightOut, 0);
+
+		dispmj(left, right, disp, &g_imgL, &g_imgR, &g_disp);
+
 		auto end_blur = std::chrono::system_clock::now();
-		imshow("Left", 6*disp);
-		imshow("Right", 6*rightOut);
+		
+		disp.convertTo(dispOut,CV_8UC1); 
+		imshow("Disp", dispOut);
   		
 		counter++;
 		auto stop = std::chrono::system_clock::now();
@@ -86,7 +96,7 @@ int main(void){
 		
 	}
 	
-	
+	cudaDestroy(g_imgL, g_imgR, g_disp);
 	/*
 	Mat image;
 	

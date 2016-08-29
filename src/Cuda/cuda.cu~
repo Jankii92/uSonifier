@@ -6,6 +6,7 @@
 #include <iostream>
 
 #define PI 3.14159265
+#define NUM_STREAMS 2
 #define WIDTH	640
 #define HEIGHT	480
 
@@ -13,23 +14,8 @@
 using namespace std;
 
 
-int calcSum(unsigned char *src){
-	
-	int xh = 480/2;
-	int yh = 640/2;
-	int sum = 0;
-	for( int x = xh-50; x < xh+50 ; x++){
-		for( int y = yh-50; y < yh+50 ; y++){
-			sum+=src[y*640+x];
-		}
-	}
-	return sum;
 
-
-}
-
-
-void cv::gpu::mj::blur(const int rows,const int cols, const int k, const unsigned char *src, unsigned char* dst){
+void cv::gpu::mj::blur(const int rows,const int cols, const int k, unsigned char *src, unsigned char* dst){
 	
 	auto start1 = std::chrono::system_clock::now();
 	int N = WIDTH;
@@ -48,36 +34,42 @@ void cv::gpu::mj::blur(const int rows,const int cols, const int k, const unsigne
 	cudaMalloc((void **)&gpudataSrc, size);
 	cudaMalloc((void **)&gpudataOut, size);
 	//cudaHostGetDevicePointer((void **)&gpudataOut,  (void *) dst , 0);
-	cudaMemcpyAsync(gpudataSrc, src, size, cudaMemcpyHostToDevice);
+	cudaMemcpy(gpudataSrc, src, size, cudaMemcpyHostToDevice);
 	
 	auto stop2 = std::chrono::system_clock::now();
-	dim3 threadsPerBlock(32,32);
+	dim3 threadsPerBlock(16,16);
 	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
 	//auto start1 = std::chrono::system_clock::now();
+	//cudaDeviceSynchronize();
 	auto stop3 = std::chrono::system_clock::now();
-	blur_noShare_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut );
-	//blur_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut);
+	//blur_noShare_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut );
+	//cudaDeviceSynchronize();
 	auto stop4 = std::chrono::system_clock::now();
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
+	//cudaDeviceSynchronize();
+	cout<<"1: Done!!!"<<endl;
+	//blur_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, k, gpudataSrc, gpudataOut);
+	cout<<"3: Done!!!"<<endl;
+	//cudaDeviceSynchronize();
 	auto stop5 = std::chrono::system_clock::now();
+	cudaMemcpy(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
 	cudaFree(gpudataSrc);
 	cudaFree(gpudataOut);
-	auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1);
-	auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - stop1);
-	auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - stop2);
-	auto duration4 = std::chrono::duration_cast<std::chrono::microseconds>(stop4 - stop3);
-	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start1);
+	auto duration1 = (std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1).count());
+	auto duration2 = (std::chrono::duration_cast<std::chrono::microseconds>(stop2 - stop1).count());
+	auto duration3 = (std::chrono::duration_cast<std::chrono::microseconds>(stop3 - stop2).count());
+	auto duration4 = (std::chrono::duration_cast<std::chrono::microseconds>(stop4 - stop3).count());
+	auto duration5 = (std::chrono::duration_cast<std::chrono::microseconds>(stop5 - stop4).count());
+	auto duration =(std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start1).count());
 	
-    //cout<<(int)duration1.count()<<" "<<(int)duration2.count()<<" " <<(int)duration3.count()<<" " <<(int)duration4.count()<<" " <<(int)duration.count()<< endl;
+    //cout<<(int)duration1<<" "<<(int)duration2<<" " <<(int)duration3<<" " <<(int)duration4<<" " <<(int)duration5<<(int)duration6<< endl;
 }
-void cv::gpu::mj::sobel(const int rows,const int cols, const unsigned char *src, unsigned char* dst, int mode){
+void cv::gpu::mj::sobel(const int rows,const int cols, unsigned char *src, unsigned char* dst, int mode){
 	
 	int N = WIDTH;
 	int M = HEIGHT;
 	
 	unsigned char* gpudataSrc;
 	
-	unsigned char* gpudataMid;
 	unsigned char* gpudataOut;
 	
 	const int size = sizeof(unsigned char)*rows*cols;
@@ -85,101 +77,70 @@ void cv::gpu::mj::sobel(const int rows,const int cols, const unsigned char *src,
 	
 	cudaMalloc((void **)&gpudataSrc, size);
 	cudaMalloc((void **)&gpudataOut, size);
-	cudaMalloc((void **)&gpudataMid, size);
 	
 	cudaMemcpyAsync(gpudataSrc, src, size, cudaMemcpyHostToDevice);
 	
 	dim3 threadsPerBlock(32,32);
 	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
 	
-	cout<<"MAT!!!!!!!"<<endl;
 
-	float angle = -2.0f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
+	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataSrc, gpudataOut, mode);
 	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = -1.5f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = 1.0f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = 0.5f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = 0.0f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = 0.5f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
-	angle = 0.0f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrc, gpudataMid, angle*PI/180);
-	sobel_abs_GPU<<<numbBlocks, threadsPerBlock>>>(rows,cols, gpudataMid, gpudataOut, 1);
-	cudaMemcpyAsync(dst, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cout<<"Angle:"<<angle<<" Sum:"<<calcSum(dst)<<endl;
 	
-	cudaFree(gpudataMid);
 	cudaFree(gpudataSrc);
 	cudaFree(gpudataOut);
 }
 
-void cv::gpu::mj::rectif(const int rows,const int cols, const unsigned char *srcL, const unsigned char *srcR, unsigned char *dstL, unsigned char *dstR, unsigned char * out){
+
+void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, unsigned char *g_srcR, unsigned char* g_disp){
 	
 	int N = WIDTH;
 	int M = HEIGHT;
 	
-	unsigned char* gpudataSrcL;
-	unsigned char* gpudataSrcR;
-	unsigned char* gpudataOutL;
-	unsigned char* gpudataOutR;
-	unsigned char* gpudataOut;
-		
-	const int size = sizeof(unsigned char)*rows*cols;
-		
+	//int* g_tmpL;
+	//int* g_tmpOut;
+	///int* g_tmp3L;
 	
-	cudaMalloc((void **)&gpudataSrcL, size);
-	cudaMalloc((void **)&gpudataOutL, size);
-	cudaMalloc((void **)&gpudataSrcR, size);
-	cudaMalloc((void **)&gpudataOutR, size);
-	cudaMalloc((void **)&gpudataOut, size);
+	//const int size = sizeof(int)*rows*cols;
 	
-	cudaMemcpyAsync(gpudataSrcL, srcL, size, cudaMemcpyHostToDevice);
-	cudaMemcpyAsync(gpudataSrcR, srcR, size, cudaMemcpyHostToDevice);
+	//cudaMalloc((void **)&g_tmpL, size);
+	//cudaMalloc((void **)&g_tmpOut, size);
+	//cudaMalloc((void **)&g_tmp3L, size);
 	
-	dim3 threadsPerBlock(32,32);
+	//cudaMemcpyAsync(g_srcR, srcR, size, cudaMemcpyHostToDevice);
+	
+	dim3 threadsPerBlock(16, 16);
 	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
+	//cudaDeviceSynchronize();
+	//cout<<"1: Done!!!"<<endl;
+	//ctoi_GPU<<<numbBlocks, threadsPerBlock>>>(rows , cols, g_srcL, g_tmpL);
+  	//cudaDeviceSynchronize();
+  	
+	//prewittFS_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLX, g_tmpLY, g_tmp2LX, g_tmp2LY);
 	
-	//cout<<"MAT!!!!!!!"<<endl;
-
-	float angle = 0.0f;
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrcR, gpudataOutR, 0);
-	rotate_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, gpudataSrcL, gpudataOutL, angle*PI/180);
-	cudaMemcpyAsync(dstL, gpudataOutL, size, cudaMemcpyDeviceToHost);
-	cudaMemcpyAsync(dstR, gpudataOutR, size, cudaMemcpyDeviceToHost);
-
-	blend_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols,  gpudataOutL,  gpudataOutR, gpudataOut, 0.5f);
+	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcL, g_disp, 30);
+	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcR, g_disp, 30);
+  	/*prewittX_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLX, 0);
+  	prewittY_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLY, 0);
+  	//cudaDeviceSynchronize();
+  	prewittXsec_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmp2LX, 0);
+  	prewittYsec_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmp2LY, 0);
+  	cudaDeviceSynchronize();
+  	*/
+  	
+	///edgeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpLX, g_tmpLY, g_tmp2LX, g_tmp2LY, g_tmpOut);
 	
-	cudaMemcpy(out, gpudataOut, size, cudaMemcpyDeviceToHost);
-	cudaFree(gpudataSrcL);
-	cudaFree(gpudataOutL);
-	cudaFree(gpudataSrcR);
-	cudaFree(gpudataOutR);
-	cudaFree(gpudataOut);
+	//itoc_GPU<<<numbBlocks, threadsPerBlock>>>(rows , cols, g_tmpOut, g_disp);
+  	//cudaDeviceSynchronize();
+	//cudaFree(g_tmpOut);
+	//cudaFree(g_tmpL);
 }
 
 
+void cv::gpu::mj::rectif(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char *dstL, unsigned char *dstR, unsigned char * out){
+	
+	
+}
 
 void cv::gpu::mj::realocHostMem(int sizec, unsigned char *img){
 	unsigned char* cpudataSrc;
@@ -198,6 +159,37 @@ void cv::gpu::mj::cudaMemcpyHtoH(unsigned char *src, unsigned char *dest, int si
 	//cudaMallocHost 	((void **)&dest,size);
 	cudaMemcpy(dest, src, size, cudaMemcpyHostToHost);	
 }
+
+void cv::gpu::mj::cudaMemcpyHtoD(unsigned char *src, unsigned char* dest, int size){
+
+	cudaMemcpy(dest, src, size, cudaMemcpyHostToDevice);
+}
+
+void cv::gpu::mj::cudaMemcpyDtoH(unsigned char *src, unsigned char* dest, int size){
+
+	cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost);
+}
+
+void cv::gpu::mj::cudaInit(unsigned char** g_src1, unsigned char** g_src2, unsigned char** g_disp, const int rows, const int cols){
+	
+	const int size = sizeof(unsigned char)*rows*cols;
+
+	cudaMalloc((void **)g_src1, size);
+	cudaMalloc((void **)g_src2, size);
+	cudaMalloc((void **)g_disp, size);
+	
+}
+
+void cv::gpu::mj::cudaDestroy(unsigned char* g_src1, unsigned char* g_src2, unsigned char* g_disp){
+	
+	cudaFree(g_src1);
+	cudaFree(g_src2);
+	cudaFree(g_disp);
+}
+
+
+
+
 
 
 
