@@ -30,14 +30,14 @@ void cv::gpu::rectifmj(Mat &L, Mat &R, Mat &Out){
 		//cv::gpu::mj::disp(480, 640, dataL, dataR, data);
 }
 
-void cv::gpu::dispmj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* r, unsigned char* disp){
+void cv::gpu::dispmj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* r, unsigned char* disp, int shift){
 		unsigned char* dataL = L.data;
 		unsigned char* dataR = R.data;
 		unsigned char* data = Out.data;
 		//unsigned char* dataOut = out.data;
 		cv::gpu::mj::cudaMemcpyHtoD(dataL, l, 640*480*sizeof(unsigned char));
 		cv::gpu::mj::cudaMemcpyHtoD(dataR, r, 640*480*sizeof(unsigned char));
-		cv::gpu::mj::disp(480, 640, l, r, disp);
+		cv::gpu::mj::disp(480, 640, l, r, disp, shift);
 		cv::gpu::mj::cudaMemcpyDtoH(disp, data, 640*480*sizeof(unsigned char));
 }
 

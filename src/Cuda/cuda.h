@@ -6,7 +6,7 @@ namespace cv{
 			void blur(const int rows,const int cols,const int k, unsigned char *src, unsigned char *dest);
 			void sobel(const int rows,const int cols, unsigned char *src, unsigned char* dst, int mode);
 			void rectif(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char *destL, unsigned char *destR, unsigned char * out);
-			void disp(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out);
+			void disp(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out, int shift);
 			void realocHostMem(int sizec, unsigned char *img);
 			void cudaMemAlocImagePtr(unsigned char *dest, int size);
 			void cudaMemcpyHtoH(unsigned char *src, unsigned char *dest, int size);

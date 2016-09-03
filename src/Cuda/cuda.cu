@@ -92,21 +92,28 @@ void cv::gpu::mj::sobel(const int rows,const int cols, unsigned char *src, unsig
 }
 
 
-void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, unsigned char *g_srcR, unsigned char* g_disp){
+void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, unsigned char *g_srcR, unsigned char* g_disp, int shift){
 	
 	int N = WIDTH;
 	int M = HEIGHT;
 	
 	//int* g_tmpL;
-	//int* g_tmpOut;
-	//int* g_tmp3L;
+	//unsigned char* g_tmpOut;
+	unsigned char* g_tmpL;
+	unsigned char* g_tmpR;
+	unsigned char* g_tmpL2;
+	unsigned char* g_tmpR2;
 	
-	//const int size = sizeof(int)*rows*cols;
+	const int size = sizeof(unsigned char)*rows*cols;
 	
-	//cudaMalloc((void **)&g_tmpL, size);
+	cudaMalloc((void **)&g_tmpL, size);
+	cudaMalloc((void **)&g_tmpR, size);
+	cudaMalloc((void **)&g_tmpL2, size);
+	cudaMalloc((void **)&g_tmpR2, size);
+	//cudaMalloc((void **)&g_tmpOut, size);
 	//cudaMalloc((void **)&g_tmpOut, size);
 	//cudaMalloc((void **)&g_tmp3L, size);
-	
+	cudaMemset(g_disp, 0, size);
 	//cudaMemcpyAsync(g_srcR, srcR, size, cudaMemcpyHostToDevice);
 	
 	dim3 threadsPerBlock(16, 16);
@@ -118,11 +125,35 @@ void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, uns
   	
 	//prewittFS_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLX, g_tmpLY, g_tmp2LX, g_tmp2LY);
 	
-	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcL, g_disp, 30);
-	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcR, g_srcR, 30);
+	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcL, g_tmpL, 50);
+	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcR, g_tmpR, 50);
+	//cudaDeviceSynchronize();
+	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpL2);
+	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpR, g_tmpR2);
+	cudaDeviceSynchronize();
+	reduce<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL2, g_tmpL);
+	reduce<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpR2, g_tmpR);
+	cudaDeviceSynchronize();
+	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpL2);
+	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpR, g_tmpR2);
+	cudaDeviceSynchronize();
+	
+	
+	dim3 threadsPerBlockDisp(8, 8);
+	dim3 numbBlocksDisp(N/ threadsPerBlockDisp.x,M/ threadsPerBlockDisp.y); 
+	compare<<<numbBlocksDisp, threadsPerBlockDisp>>>(rows, cols, g_tmpL2, g_tmpR2, g_disp, shift);
+	//blend_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpR, g_disp, 0.5, 1);
+	//findNode<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_disp, g_disp);
+	
+	//dim1 threadsPerBlock1(1);
+	//dim1 numbBlocks1(1024/ threadsPerBlock.x); 
+	
+	//edgeDraw<<<200, 1>>>(rows, cols, g_tmpOut, g_disp);
+	
+  	//cudaDeviceSynchronize();
+	//edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcR, g_srcR, 30);
   	/*prewittX_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLX, 0);
   	prewittY_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmpLY, 0);
-  	//cudaDeviceSynchronize();
   	prewittXsec_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmp2LX, 0);
   	prewittYsec_GPU <<<numbBlocks, threadsPerBlock>>>(rows, cols, g_tmpL, g_tmp2LY, 0);
   	cudaDeviceSynchronize();
@@ -133,7 +164,10 @@ void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, uns
 	//itoc_GPU<<<numbBlocks, threadsPerBlock>>>(rows , cols, g_tmpOut, g_disp);
   	//cudaDeviceSynchronize();
 	//cudaFree(g_tmpOut);
-	//cudaFree(g_tmpL);
+	cudaFree(g_tmpL);
+	cudaFree(g_tmpR);
+	cudaFree(g_tmpL2);
+	cudaFree(g_tmpL2);
 }
 
 

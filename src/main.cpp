@@ -7,7 +7,7 @@
 #include <cuda_runtime.h>
 
 
-#define FPS		25
+#define FPS		30
 
 using namespace cv::gpu;
 
@@ -57,6 +57,8 @@ int main(void){
 	namedWindow( "Left", WINDOW_AUTOSIZE );
 	namedWindow( "Right", WINDOW_AUTOSIZE );
 	namedWindow( "Disp", WINDOW_AUTOSIZE );
+	
+	int shift = 0;
 	auto start = std::chrono::system_clock::now();
 	while((cvWaitKey(1) & 0xff) != 27)
 	{
@@ -74,7 +76,7 @@ int main(void){
 		imshow("Right", right);
 		auto start_blur = std::chrono::system_clock::now();
 
-		dispmj(left, right, disp, g_imgL, g_imgR, g_disp);
+		dispmj(left, right, disp, g_imgL, g_imgR, g_disp, shift);
 
 		auto end_blur = std::chrono::system_clock::now();
 		
@@ -86,8 +88,11 @@ int main(void){
   		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
   		
   		auto duration_blur = std::chrono::duration_cast<std::chrono::microseconds>(end_blur - start_blur);
+  		
+  		//if(shift>64) shift = 0;
 		if(duration.count()>1000){
 			//system("clear");	
+			shift++;
 			std::cout <<"FPS: "<< counter <<" "<< duration.count()/(float)counter <<  std::endl;
 			std::cout <<"BLUR: "<< duration_blur.count()/1000.0f << "ms" << std::endl;
 			counter = 0;

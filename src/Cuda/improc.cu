@@ -1,9 +1,26 @@
 #include "improc.h"
 #include <math.h>
 #include <stdlib.h>
+#include <curand.h>
 #include <iostream>
 
 #define BLUR_K 5
+
+#define EEND  50
+#define END_X  150
+#define END_Y  151
+#define END_XY  152
+#define END_YX  153
+#define END_X_XY  154
+#define END_X_YX  155
+#define END_Y_XY  156
+#define END_Y_YX  157
+#define VERT  50
+#define HORI  70
+#define DIAG  90
+#define NODE  200
+#define NOISE  1
+
 
 __device__ void share_uchar(int* in, int* out, const int in_rows, const int in_cols, const int blockDimm, int th_x, int th_y, int x, int y, const int r){
 	
@@ -49,6 +66,184 @@ __device__ bool SameSign_GPU(int *x, int *y)
 {
     return ((*x > 0) ^ (*y < 0));
 }
+
+__device__ void shift_GPU(char *x)
+{
+	*x =(*x << 1 | *x >> 7); 
+}
+
+__device__ bool isDeadEnd(unsigned char *x){
+	if(*x == 7 || *x == 28 || *x == 112 || *x == 192)
+		return true;
+	else
+		return false;
+}
+
+__device__ bool isEndEx(unsigned char *x){
+	
+	if(!((   (*x ^ 0b10000000) & 0b10111111) && 
+			((*x ^ 0b01000000) & 0b01111111) &&
+			((*x ^ 0b00100000) & 0b10111111) &&
+			((*x ^ 0b00010000) & 0b11011111) &&
+			((*x ^ 0b00001000) & 0b11101111) &&
+			((*x ^ 0b00000100) & 0b11110111) &&
+			((*x ^ 0b00000010) & 0b11111011) &&
+			((*x ^ 0b00000001) & 0b11111101) &&
+			((*x ^ 0b10000001) & 0b11111101)) || *x == 60 || *x == 104)
+		return true;
+	else 
+		return false;
+}
+__device__ bool isEndX(unsigned char *x){
+	
+	if(*x == 8 || *x == 128) return true;
+	else return false;
+}
+__device__ bool isEndY(unsigned char *x){
+	
+	if(*x == 2 || *x == 32) return true;
+	else return false;
+}
+__device__ bool isEndXY(unsigned char *x){
+	if(*x == 1 || *x == 16) return true;
+	else return false;
+}
+__device__ bool isEndYX(unsigned char *x){
+	if(*x == 4 || *x == 64) return true;
+	else return false;
+}
+__device__ bool isEndXXY(unsigned char *x){
+	if(*x == 24 || *x == 129) return true;
+	else return false;
+}
+__device__ bool isEndXYX(unsigned char *x){
+	if(*x == 12 || *x == 129) return true;
+	else return false;
+}
+__device__ bool isEndYXY(unsigned char *x){
+	
+	if(*x == 4 || *x == 48) return true;
+	else return false;
+}
+__device__ bool isEndYYX(unsigned char *x){
+	
+	if(*x == 6 || *x == 96) return true;
+	else return false;
+}
+
+
+
+__device__ bool isVertical(unsigned char *x){
+			//    ABCDEFGH      ABCDEFGH
+	if(!(((*x ^ 0b00010010) & 0b11011010) &&
+		 ((*x ^ 0b00010010) & 0b11010110) &&
+		 ((*x ^ 0b00100001) & 0b01101101) &&
+		 ((*x ^ 0b00100010) & 0b11101010) &&			
+			//	  ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b00100100) & 0b10110101) &&	
+		 ((*x ^ 0b01000010) & 0b11011010) &&
+		 ((*x ^ 0b01000010) & 0b01011110) &&
+		 ((*x ^ 0b01000010) & 0b01011011) &&		
+			//	  ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01100010) & 0b01111010) &&	
+		 ((*x ^ 0b00010001) & 0b11011101) &&
+		 ((*x ^ 0b00010011) & 0b01011111) &&
+		 ((*x ^ 0b00010100) & 0b11011101) &&	
+			//	  ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b00100110) & 0b10101111) &&	
+		 ((*x ^ 0b00110001) & 0b11110101) &&
+		 ((*x ^ 0b00110011) & 0b01110111) &&
+		 ((*x ^ 0b01000001) & 0b11011101) &&
+			//	  ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01000100) & 0b11011101) &&	
+		 ((*x ^ 0b01000110) & 0b11010111) &&
+		 ((*x ^ 0b01100100) & 0b01111101) &&
+		 ((*x ^ 0b01100110) & 0b01101111) &&
+			//	  ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b10100011) & 0b10101111) &&	
+		 ((*x ^ 0b11111000) & 0b11111110) &&
+		 ((*x ^ 0b11111000) & 0b11111101)))
+		return true;
+	else 
+		return false;
+}
+
+__device__ bool isHorizontal(unsigned char *x){
+			//    ABCDEFGH      ABCDEFGH
+	if(!(((*x ^ 0b10001000) & 0b10101010) &&
+		 ((*x ^ 0b00001001) & 0b01101101) &&
+		 ((*x ^ 0b00001001) & 0b01101011) &&
+		 ((*x ^ 0b01001000) & 0b01101011) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b10000100) & 0b10110110) &&
+		 ((*x ^ 0b10000100) & 0b10110101) &&
+		 ((*x ^ 0b10010000) & 0b11010110) &&
+		 ((*x ^ 0b10010000) & 0b10110110) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b10010000) & 0b10010111) &&
+		 ((*x ^ 0b10011000) & 0b10011110) &&
+		 ((*x ^ 0b11001000) & 0b11011011) &&
+		 ((*x ^ 0b00000101) & 0b01110111) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b00010001) & 0b01110111) &&
+		 ((*x ^ 0b00011001) & 0b01011111) &&
+		 ((*x ^ 0b01000100) & 0b01110111) &&
+		 ((*x ^ 0b01001100) & 0b01011111) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01010000) & 0b01110111) &&
+		 ((*x ^ 0b10010001) & 0b11110101) &&
+		 ((*x ^ 0b10011001) & 0b11111001) &&
+		 ((*x ^ 0b10011001) & 0b11011101) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b11000100) & 0b11010111) &&
+		 ((*x ^ 0b11001100) & 0b11111100) &&
+		 ((*x ^ 0b11001100) & 0b11101101) &&
+		 ((*x ^ 0b11001100) & 0b11011101) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01110001) & 0b11111101) &&
+		 ((*x ^ 0b01110010) & 0b01111111) &&
+		 ((*x ^ 0b01110011) & 0b11110111) &&
+		 ((*x ^ 0b01110100) & 0b11111111)))		 
+		return true;
+	else 
+		return false;
+}
+
+__device__ bool isNode3(unsigned char *x){
+			//    ABCDEFGH      ABCDEFGH
+	if(!(((*x ^ 0b01111101) & 0b10100111) &&
+		 ((*x ^ 0b11101101) & 0b00110111) &&
+		 ((*x ^ 0b01101111) & 0b10111001) &&
+		 ((*x ^ 0b11101011) & 0b00111101) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01011111) & 0b11101001) &&
+		 ((*x ^ 0b01111011) & 0b11001101) &&
+		 ((*x ^ 0b11011011) & 0b01101110) &&
+		 ((*x ^ 0b11111010) & 0b01001111) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b01011111) & 0b11110010) &&
+		 ((*x ^ 0b11010111) & 0b01111010) &&
+		 ((*x ^ 0b10111110) & 0b11010011) &&
+		 ((*x ^ 0b11110110) & 0b10011011) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b10110111) & 0b11011100) &&
+		 ((*x ^ 0b11110101) & 0b10011110) &&
+		 ((*x ^ 0b10101111) & 0b11110100) &&
+		 ((*x ^ 0b10111101) & 0b11100110) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b10110101) & 0b01011111) &&
+		 ((*x ^ 0b01101011) & 0b10111110) &&
+		 ((*x ^ 0b01101101) & 0b11010111) &&
+		 ((*x ^ 0b01011011) & 0b11110101) &&	
+			//    ABCDEFGH      ABCDEFGH
+		 ((*x ^ 0b11010110) & 0b01111101) &&
+		 ((*x ^ 0b11011010) & 0b10101111) &&
+		 ((*x ^ 0b10110110) & 0b11101011))) 
+		return true;
+	else 
+		return false;
+}
+
 
 __global__ void ctoi_GPU(const int rows,const  int cols, unsigned char *img, int *result){
 
@@ -209,59 +404,6 @@ __global__ void prewitt_GPU (const int rows, const int cols, int *img, int *des,
 			des[y*cols+x] = (abs(sumX)+abs(sumY));	
 }
 
-__global__ void prewittXY_GPU (const int rows, const int cols, int *img, int *des, const int mode){
-		
-		//const int r = 1;
-		
-		int x = blockIdx.x * blockDim.x + threadIdx.x;
-    	int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    	if(x <= 1 || x >= cols-1 || y <= 1 || y >= rows-1) return;
-		
-    	
-    	int sumXY = 0;
-    	    	
-    	sumXY-=2*img[(y-1)*cols+(x-1)];
-    	sumXY+=img[(y-1)*cols+(x)];
-    	//sumX+=img[(y-1)*cols+(x+1)];
-    	sumXY-=img[(y)*cols+(x-1)];
-    	//sum+=img[(y)*cols+(x)];
-    	sumXY+=img[(y)*cols+(x+1)]; 
-    	//sumX-=img[(y+1)*cols+(x-1)];
-    	sumXY+=img[(y+1)*cols+(x)];
-    	sumXY+=2*img[(y+1)*cols+(x+1)];
-    	
-		if(mode == 0) 
-			des[y*cols+x] = (sumXY);
-}
-
-__global__ void prewittYX_GPU (const int rows, const int cols, int *img, int *des, const int mode){
-		
-		//const int r = 1;
-		
-		int x = blockIdx.x * blockDim.x + threadIdx.x;
-    	int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    	if(x <= 1 || x >= cols-1 || y <= 1 || y >= rows-1) return;
-		
-    	
-    	int sumYX = 0;
-    	    	
-    	//sumYX-=img[(y-1)*cols+(x-1)];
-    	sumYX+=img[(y-1)*cols+(x)];
-    	sumYX+=2*img[(y-1)*cols+(x+1)];
-    	
-    	sumYX-=img[(y)*cols+(x-1)];
-    	//sumYX+=img[(y)*cols+(x-1)];
-    	sumYX+=img[(y)*cols+(x+1)]; 
-    	
-    	sumYX-=2*img[(y+1)*cols+(x-1)];
-    	sumYX-=img[(y+1)*cols+(x)];
-    	//sumYX+=img[(y+1)*cols+(x+1)];
-
-		if(mode == 0) 
-			des[y*cols+x] = (sumYX);
-}
 
 __global__ void prewittX_GPU (const int rows, const int cols, int *img, int *des, const int mode){
 		
@@ -273,13 +415,10 @@ __global__ void prewittX_GPU (const int rows, const int cols, int *img, int *des
     	int sumX = 0;
     	    	
     	sumX-=img[(y-1)*cols+(x-1)];
-    	//sum+=((int)img[(y-1)*cols+(x)]*sX[1];
     	sumX+=img[(y-1)*cols+(x+1)];
     	sumX-=2*img[(y)*cols+(x-1)];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
     	sumX+=2*img[(y)*cols+(x+1)]; 
     	sumX-=img[(y+1)*cols+(x-1)];
-    	//sum+=((int)img[(y+1)*cols+(x)]*sX[7];
     	sumX+=img[(y+1)*cols+(x+1)];
     	
 		if(mode == 0) 
@@ -296,18 +435,7 @@ __global__ void prewittXsec_GPU (const int rows, const int cols, int *img, int *
 
     	if(x <= 2 || x >= cols-2 || y <= 2 || y >= rows-2) return;
 
-    	int sumX = 0;
-    	    	
-    	/*//sumX-=img[(y-1)*cols+(x-1)];
-    	//sum+=((int)img[(y-1)*cols+(x)]*sX[1];
-    	//sumX+=img[(y-1)*cols+(x+1)];
-    	sumX+=1*img[(y)*cols+(x-1)];
-    	sumX-=2*img[(y)*cols+(x)];
-    	sumX+=1*img[(y)*cols+(x+1)]; 
-    	//sumX-=img[(y+1)*cols+(x-1)];
-    	//sum+=((int)img[(y+1)*cols+(x)]*sX[7];
-    	//sumX+=img[(y+1)*cols+(x+1)];*/
-    	
+    	int sumX = 0;    	
     	
     	sumX+=img[(y-2)*cols+(x-2)];
     	sumX-=2*img[(y-2)*cols+(x)];
@@ -349,9 +477,6 @@ __global__ void prewittY_GPU (const int rows, const int cols, int *img, int *des
     	sumY-=img[(y-1)*cols+(x-1)];
     	sumY-=2*img[(y-1)*cols+(x)];
     	sumY-=img[(y-1)*cols+(x+1)];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[3];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[4];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[5];
     	sumY+=img[(y+1)*cols+(x-1)];
     	sumY+=2*img[(y+1)*cols+(x)];
     	sumY+=img[(y+1)*cols+(x+1)];
@@ -412,7 +537,6 @@ __global__ void prewittFS_GPU (const int rows, const int cols, int *img, int *de
     	
     	__syncthreads();
     		
-    	//if(x < 0 || x >= cols || y < 0 || y >= rows) return;
     	
     	int sumYf = 0;
     	int sumYs = 0;    	
@@ -482,25 +606,25 @@ __global__ void prewittFS_GPU (const int rows, const int cols, int *img, int *de
 
 __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *img, unsigned char *out, int th){
 
-    	__shared__ unsigned char s[21][21];
+    	__shared__ unsigned char s[22][22];
     	
 		int x = blockIdx.x * blockDim.x + threadIdx.x;
     	int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-		int iX = threadIdx.x+2;
-		int iY = threadIdx.y+2;
+		int iX = threadIdx.x+3;
+		int iY = threadIdx.y+3;
     	
-    	if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	if(x < 0 || x >= cols-1 || y < 0 || y >= rows-1) return;
     	
     	s[iX][iY] = img[y*cols+x];
     	
     
-    	if(iX < 4){
-    		if(x < 2) s[iX-2][iY] = 0;
+    	if(iX < 6){
+    		if(x < 3) s[iX-3][iY] = 0;
     		else{
-    			s[iX-2][iY] = img[y*cols+x-2];
-    			if(y < 2) s[iX-2][iY-2] = 0;
-    			else s[iX-2][iY-2] = img[(y-2)*cols+(x-2)];  		
+    			s[iX-3][iY] = img[y*cols+x-3];
+    			if(y < 3) s[iX-3][iY-3] = 0;
+    			else s[iX-3][iY-3] = img[(y-3)*cols+(x-3)];  		
     		}
     	}
     	if(iX >= blockDim.x-1){
@@ -511,20 +635,20 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
     			else s[iX+3][iY+3] = img[(y+3)*cols+x+3];
     		}
     	}
-    	if(iY < 4){
-    		if(y < 2) s[iX][iY-2] = 0;
+    	if(iY < 6){
+    		if(y < 3) s[iX][iY-3] = 0;
     		else{
-    			s[iX][iY-2] = img[(y-2)*cols+x];
-    			if(x >= cols-3) s[iX+3][iY-2] = 0;
-    			else s[iX+3][iY-2] = img[(y-2)*cols+x+3];
+    			s[iX][iY-3] = img[(y-3)*cols+x];
+    			if(x >= cols-3) s[iX+3][iY-3] = 0;
+    			else s[iX+3][iY-3] = img[(y-3)*cols+x+3];
     		}
     	}
     	if(iY >= blockDim.y-1){
     		if(y >= rows-3) s[iX][iY+3] = 0;
     		else{
     			s[iX][iY+3] = img[(y+3)*cols+x];
-    			if(x < 2) s[iX-2][iY+3] = 0;
-    			else s[iX-2][iY+3] = img[(y+3)*cols+(x-2)];
+    			if(x < 3) s[iX-3][iY+3] = 0;
+    			else s[iX-3][iY+3] = img[(y+3)*cols+(x-3)];
     		}
     	}
     	
@@ -534,10 +658,13 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
     	
     	int sumYf = 0;
     	int sumYs = 0; 
-    	int sumYss = 0;   	
+    	int sumYss = 0;   
+    	int sumYsm = 0;   	
     	int sumXf = 0;
     	int sumXs = 0;
     	int sumXss = 0;
+    	int sumXsm = 0;
+  
 // Y first		
     	sumYf-=  s[iX-1][iY-1];
     	sumYf-=2*s[iX  ][iY-1];
@@ -563,6 +690,24 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
     	sumYs+=6*s[iX  ][iY+2];
     	sumYs+=4*s[iX+1][iY+2];
     	sumYs+=  s[iX+2][iY+2];
+// Y-1 second  	
+		sumYsm+=  s[iX-2][iY-3];
+    	sumYsm+=4*s[iX-1][iY-3];
+    	sumYsm+=6*s[iX  ][iY-3];
+    	sumYsm+=4*s[iX+1][iY-3];
+    	sumYsm+=  s[iX+2][iY-3];
+
+		sumYsm-= 2*s[iX-2][iY-1];
+    	sumYsm-= 8*s[iX-1][iY-1];
+    	sumYsm-=12*s[iX  ][iY-1];
+    	sumYsm-= 8*s[iX+1][iY-1];
+    	sumYsm-= 2*s[iX+2][iY-1];
+    	
+    	sumYsm+=  s[iX-2][iY+1];
+    	sumYsm+=4*s[iX-1][iY+1];
+    	sumYsm+=6*s[iX  ][iY+1];
+    	sumYsm+=4*s[iX+1][iY+1];
+    	sumYsm+=  s[iX+2][iY+1];
 // Y+1 second 
     	sumYss+=  s[iX-2][iY-1];
     	sumYss+=4*s[iX-1][iY-1];
@@ -606,6 +751,24 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
     	sumXs+=6*s[iX+2][iY  ];
     	sumXs+=4*s[iX+2][iY+1];
     	sumXs+=  s[iX+2][iY+2];
+ // X-1 second   	
+    	sumXsm+=  s[iX-3][iY-2];
+    	sumXsm+=4*s[iX-3][iY-1];
+    	sumXsm+=6*s[iX-3][iY  ];
+    	sumXsm+=4*s[iX-3][iY+1];
+    	sumXsm+=  s[iX-3][iY+2];
+
+		sumXsm-= 2*s[iX-1][iY-2];
+    	sumXsm-= 8*s[iX-1][iY-1];
+    	sumXsm-=12*s[iX-1][iY  ];
+    	sumXsm-= 8*s[iX-1][iY+1];
+    	sumXsm-= 2*s[iX-1][iY+2];
+    	
+    	sumXsm+=  s[iX+1][iY-2];
+    	sumXsm+=4*s[iX+1][iY-1];
+    	sumXsm+=6*s[iX+1][iY  ];
+    	sumXsm+=4*s[iX+1][iY+1];
+    	sumXsm+=  s[iX+1][iY+2];
 // X+1 second
     	sumXss+=  s[iX-1][iY-2];
     	sumXss+=4*s[iX-1][iY-1];
@@ -624,19 +787,54 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
     	sumXss+=6*s[iX+3][iY  ];
     	sumXss+=4*s[iX+3][iY+1];
     	sumXss+=  s[iX+3][iY+2];
-		
+    	
+    	/*int value = sumXs/5+128;
+    	if (value > 255)
+   			out[y*cols+x] = 255;
+   		else if (value < 0)
+   			out[y*cols+x] = 0;
+   		else
+   			out[y*cols+x] = value; 
+		*/
 		
 		if(sumXf > th || sumXf < -th){
-			if(!SameSign_GPU(&sumXs, &sumXss))
+			if(sumXs == 0) {
 				out[y*cols+x] = 255;
 				return;
+			}
+			if(!SameSign_GPU(&sumXs, &sumXss)){
+				if((sumXs+sumXss > 0 && sumXs < 0) ||  (sumXs+sumXss < 0 && sumXs > 0)){
+					out[y*cols+x] = 255;
+					return;
+				}
+			}
+			if(!SameSign_GPU(&sumXsm, &sumXs)){
+				if((sumXsm+sumXs < 0 && sumXs > 0) ||  (sumXs+sumXsm > 0 && sumXs < 0)){
+					out[y*cols+x] = 255;
+					return;
+				}
+			}
 		}		
-		else if(sumYf > th || sumYf < -th){
-			if(!SameSign_GPU(&sumYs, &sumYss))
+		if(sumYf > th || sumYf < -th){
+			if(sumYs == 0){
 				out[y*cols+x] = 255;
 				return;
+			}
+			if(!SameSign_GPU(&sumYs, &sumYss)){
+				if((sumYs+sumYss > 0 && sumYs < 0) ||  (sumYs+sumYss < 0 && sumYs > 0)){
+					out[y*cols+x] = 255;
+					return;
+				}
+			}
+			if(!SameSign_GPU(&sumYs, &sumYsm)){
+				if((sumYsm+sumYs < 0 && sumYs > 0) ||  (sumYs+sumYsm > 0 && sumYs < 0)){
+					out[y*cols+x] = 255;
+					return;
+				}
+			}
 		}
-		out[y*cols+x] = 0;
+		else
+			out[y*cols+x] = 0;
 		
 }
 
@@ -648,16 +846,6 @@ __global__ void prewittYsec_GPU (const int rows, const int cols, int *img, int *
     	if(x <= 2 || x >= cols-2 || y <= 2 || y >= rows-2) return;
     	
     	int sumY = 0;
-    	/*
-    	//sumY-=img[(y-1)*cols+(x-1)];
-    	sumY+=1*img[(y-1)*cols+(x)];
-    	//sumY-=img[(y-1)*cols+(x+1)];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[3];
-    	sumY-=2*img[(y)*cols+(x)];
-    	//sum+=((int)img[(y)*cols+(x-1)]*sX[5];
-    	//sumY+=img[(y+1)*cols+(x-1)];
-    	sumY+=1*img[(y+1)*cols+(x)];
-    	//sumY+=img[(y+1)*cols+(x+1)];*/
     	
     	sumY+=img[(y-2)*cols+(x-2)];
     	sumY+=4*img[(y-2)*cols+(x-1)];
@@ -712,6 +900,17 @@ __global__ void blend_GPU (const int rows, const int cols, int *img1, int *img2,
 	dest[y*cols+x] = value;
 }
 
+__global__ void blend_GPU (const int rows, const int cols, unsigned char *img1, unsigned char *img2, unsigned char *dest, const float blend, const float scale){
+	int x = blockIdx.x * blockDim.x + threadIdx.x;// Kernel definition
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	if(x < 0  || x > cols || y < 0 || y > rows) return;
+	
+	float value = ((scale*blend*img1[y*cols+x])+(scale*(1-blend)*img2[y*cols+x])); 
+
+	dest[y*cols+x] = value;
+}
+
 __global__ void edgeDetect(const int rows, const int cols, int *firstX, int *firstY, int *secX, int *secY, int *des){
 
 		int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -723,13 +922,13 @@ __global__ void edgeDetect(const int rows, const int cols, int *firstX, int *fir
 		//int secTH = 30;
 		if(abs(firstX[y*cols+x]) > firstTH ){
 			des[y*cols+x] = 0;
-			if(!SameSign(secX[y*cols+(x-1)], secX[y*cols+(x)]))
+			if(!SameSign(secX[y*cols+(x-1)], secX[y*cols+(x+1)]))
 				des[y*cols+x] = 255;
 				return;
 		}		
 		else if(abs(firstY[y*cols+x]) > firstTH ){
 			des[y*cols+x] = 0;
-			if(!SameSign(secY[(y-1)*cols+(x)], secY[(y)*cols+(x)]))
+			if(!SameSign(secY[(y-1)*cols+(x)], secY[(y+1)*cols+(x)]))
 				des[y*cols+x] = 255;
 				return;
 		}		
@@ -737,6 +936,449 @@ __global__ void edgeDetect(const int rows, const int cols, int *firstX, int *fir
 		else 
 			des[y*cols+x] = 0;
 }
+
+__global__ void edgeTypeDetect(const int rows, const int cols, unsigned char *img, unsigned char *des){
+
+    	__shared__ unsigned char s[20][20];
+    	
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+		int iX = threadIdx.x+1;
+		int iY = threadIdx.y+1;
+    	
+    	if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	
+    	s[iX][iY] = img[y*cols+x];
+    	
+    
+    	if(iX < 2){
+    		if(x < 1) s[iX-1][iY] = 0;
+    		else{
+    			s[iX-1][iY] = img[y*cols+x-1];
+    			if(y < 1) s[iX-1][iY-1] = 0;
+    			else s[iX-1][iY-1] = img[(y-1)*cols+(x-1)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-1) s[iX+1][iY] = 0;
+    		else{
+    			s[iX+1][iY] = img[y*cols+(x+1)];
+    			if(y >= rows-1) s[iX+1][iY+1] = 0;
+    			else s[iX+1][iY+1] = img[(y+1)*cols+x+1];
+    		}
+    	}
+    	if(iY < 2){
+    		if(y < 1) s[iX][iY-1] = 0;
+    		else{
+    			s[iX][iY-1] = img[(y-1)*cols+x];
+    			if(x >= cols-1) s[iX+1][iY-1] = 0;
+    			else s[iX+1][iY-1] = img[(y-1)*cols+x+1];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-1) s[iX][iY+1] = 0;
+    		else{
+    			s[iX][iY+1] = img[(y+1)*cols+x];
+    			if(x < 1) s[iX-1][iY+1] = 0;
+    			else s[iX-1][iY+1] = img[(y+1)*cols+(x-1)];
+    		}
+    	}
+    	
+		if(s[iX][iY]){
+    	
+			unsigned char value = 0;
+			if(s[iX-1][iY-1]) value |= 0b00000001;
+			if(s[iX  ][iY-1]) value |= 0b00000010;
+			if(s[iX+1][iY-1]) value |= 0b00000100;
+			if(s[iX+1][iY  ]) value |= 0b00001000;
+			if(s[iX+1][iY+1]) value |= 0b00010000;
+			if(s[iX  ][iY+1]) value |= 0b00100000;
+			if(s[iX-1][iY+1]) value |= 0b01000000;
+			if(s[iX-1][iY  ]) value |= 0b10000000;
+			
+			
+
+			if(isNode3(&value)){
+				des[y*cols+x] = NODE;
+				return;
+			}
+			if(isVertical(&value)){
+				if(isHorizontal(&value)){
+					des[y*cols+x] = DIAG;
+					return;	
+				}
+				des[y*cols+x] = VERT;
+				return;
+			}
+			if(isHorizontal(&value)){
+				des[y*cols+x] = HORI;
+				return;
+			}
+			if(isEndX(&value)){	
+				des[y*cols+x] = END_X;
+				return;
+			}
+			if(isEndY(&value)){	
+				des[y*cols+x] = END_Y;
+				return;
+			}
+			if(isEndXXY(&value)){	
+				des[y*cols+x] = END_X_XY;
+				return;
+			}
+			if(isEndXYX(&value)){	
+				des[y*cols+x] = END_X_YX;
+				return;
+			}
+			if(isEndYXY(&value)){	
+				des[y*cols+x] = END_Y_XY;
+				return;
+			}
+			if(isEndYYX(&value)){	
+				des[y*cols+x] = END_Y_YX;
+				return;
+			}
+			if(value == 0){
+				des[y*cols+x] = NOISE;
+				return;
+			}
+			des[y*cols+x] = 255;
+			return;
+		}
+		des[y*cols+x] = 0;
+			
+}
+
+__global__ void findNode(const int rows, const int cols, unsigned char *img, unsigned char *des){
+
+    	__shared__ unsigned char s[20][20];
+    	
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+		int iX = threadIdx.x+2;
+		int iY = threadIdx.y+2;
+    	
+    	if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	
+    	s[iX][iY] = img[y*cols+x];
+    	
+    
+    	if(iX < 4){
+    		if(x < 2) s[iX-2][iY] = 0;
+    		else{
+    			s[iX-2][iY] = img[y*cols+x-2];
+    			if(y < 2) s[iX-2][iY-2] = 0;
+    			else s[iX-2][iY-2] = img[(y-2)*cols+(x-2)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-2) s[iX+2][iY] = 0;
+    		else{
+    			s[iX+2][iY] = img[y*cols+(x+2)];
+    			if(y >= rows-2) s[iX+2][iY+2] = 0;
+    			else s[iX+2][iY+2] = img[(y+2)*cols+x+2];
+    		}
+    	}
+    	if(iY < 4){
+    		if(y < 2) s[iX][iY-2] = 0;
+    		else{
+    			s[iX][iY-2] = img[(y-2)*cols+x];
+    			if(x >= cols-2) s[iX+2][iY-2] = 0;
+    			else s[iX+2][iY-2] = img[(y-2)*cols+x+2];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-2) s[iX][iY+2] = 0;
+    		else{
+    			s[iX][iY+2] = img[(y+2)*cols+x];
+    			if(x < 2) s[iX-2][iY+2] = 0;
+    			else s[iX-2][iY+2] = img[(y+2)*cols+(x-2)];
+    		}
+    	}
+    	
+    	__syncthreads();
+    	
+
+		
+    	if(s[iX][iY]){
+    	
+			unsigned char value = 0;
+			if(s[iX-1][iY-1]) value |= 0b00000001;
+			if(s[iX  ][iY-1]) value |= 0b00000010;
+			if(s[iX+1][iY-1]) value |= 0b00000100;
+			if(s[iX+1][iY  ]) value |= 0b00001000;
+			if(s[iX+1][iY+1]) value |= 0b00010000;
+			if(s[iX  ][iY+1]) value |= 0b00100000;
+			if(s[iX-1][iY+1]) value |= 0b01000000;
+			if(s[iX-1][iY  ]) value |= 0b10000000;
+			
+			if(isNode3(&value)){
+				unsigned char xM = 0;
+				unsigned char xP = 0;
+				unsigned char yM = 0;
+				unsigned char yP = 0; 
+				if(s[iX-2][iY-1]) xM |= 0b00000001;
+				if(s[iX-1][iY-1]) xM |= 0b00000010;
+				if(s[iX  ][iY-1]) xM |= 0b00000100;
+				if(s[iX  ][iY  ]) xM |= 0b00001000;
+				if(s[iX  ][iY+1]) xM |= 0b00010000;
+				if(s[iX-1][iY+1]) xM |= 0b00100000;
+				if(s[iX-2][iY+1]) xM |= 0b01000000;
+				if(s[iX-2][iY  ]) xM |= 0b10000000;
+
+				if(s[iX  ][iY-1]) xP |= 0b00000001;
+				if(s[iX+1][iY-1]) xP |= 0b00000010;
+				if(s[iX+2][iY-1]) xP |= 0b00000100;
+				if(s[iX+2][iY  ]) xP |= 0b00001000;
+				if(s[iX+2][iY+1]) xP |= 0b00010000;
+				if(s[iX+1][iY+1]) xP |= 0b00100000;
+				if(s[iX  ][iY+1]) xP |= 0b01000000;
+				if(s[iX  ][iY  ]) xP |= 0b10000000;		
+				
+				if(s[iX-1][iY-2]) yM |= 0b00000001;
+				if(s[iX  ][iY-2]) yM |= 0b00000010;
+				if(s[iX+1][iY-2]) yM |= 0b00000100;
+				if(s[iX+1][iY-1]) yM |= 0b00001000;
+				if(s[iX+1][iY  ]) yM |= 0b00010000;
+				if(s[iX  ][iY  ]) yM |= 0b00100000;
+				if(s[iX-1][iY  ]) yM |= 0b01000000;
+				if(s[iX-1][iY-1]) yM |= 0b10000000;	
+				
+				if(s[iX-1][iY  ]) yP |= 0b00000001;
+				if(s[iX  ][iY  ]) yP |= 0b00000010;
+				if(s[iX+1][iY  ]) yP |= 0b00000100;
+				if(s[iX+1][iY+1]) yP |= 0b00001000;
+				if(s[iX+1][iY+2]) yP |= 0b00010000;
+				if(s[iX  ][iY+2]) yP |= 0b00100000;
+				if(s[iX-1][iY+2]) yP |= 0b01000000;
+				if(s[iX-1][iY+1]) yP |= 0b10000000;
+			
+				if(!isDeadEnd(&xM) && !isDeadEnd(&xP) && !isDeadEnd(&yM) && !isDeadEnd(&yP))
+    				des[y*cols+x] = 255;
+    			else
+    				des[y*cols+x] = 70;
+    		}else 
+    			des[y*cols+x] = 70;
+    	}else
+    		des[y*cols+x] = 0;
+    	
+}
+
+__global__ void extend(const int rows, const int cols, unsigned char *img, unsigned char *des){
+
+    	__shared__ unsigned char s[20][20];
+    	
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+		int iX = threadIdx.x+1;
+		int iY = threadIdx.y+1;
+    	
+    	if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	
+    	s[iX][iY] = img[y*cols+x];
+    	
+    
+    	if(iX < 2){
+    		if(x < 1) s[iX-1][iY] = 0;
+    		else{
+    			s[iX-1][iY] = img[y*cols+x-1];
+    			if(y < 1) s[iX-1][iY-1] = 0;
+    			else s[iX-1][iY-1] = img[(y-1)*cols+(x-1)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-1) s[iX+1][iY] = 0;
+    		else{
+    			s[iX+1][iY] = img[y*cols+(x+1)];
+    			if(y >= rows-1) s[iX+1][iY+1] = 0;
+    			else s[iX+1][iY+1] = img[(y+1)*cols+x+1];
+    		}
+    	}
+    	if(iY < 2){
+    		if(y < 1) s[iX][iY-1] = 0;
+    		else{
+    			s[iX][iY-1] = img[(y-1)*cols+x];
+    			if(x >= cols-1) s[iX+1][iY-1] = 0;
+    			else s[iX+1][iY-1] = img[(y-1)*cols+x+1];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-1) s[iX][iY+1] = 0;
+    		else{
+    			s[iX][iY+1] = img[(y+1)*cols+x];
+    			if(x < 1) s[iX-1][iY+1] = 0;
+    			else s[iX-1][iY+1] = img[(y+1)*cols+(x-1)];
+    		}
+    	}
+    	
+    	__syncthreads();
+    	
+    	if(!s[iX][iY]){
+    		if(s[iX-1][iY-1] == END_XY || s[iX-1][iY-1] == END_Y_XY || s[iX-1][iY-1] == END_X_XY)
+    			des[y*cols+x] = 255;
+    		if(s[iX][iY-1] == END_Y || s[iX][iY-1] == END_Y_XY || s[iX][iY-1] == END_Y_YX)
+    			des[y*cols+x] = 255;
+    		if(s[iX+1][iY-1] == END_YX || s[iX+1][iY-1] == END_X_YX || s[iX+1][iY-1] == END_Y_YX)
+    			des[y*cols+x] = 255;
+    		if(s[iX+1][iY] == END_X || s[iX+1][iY] == END_X_YX || s[iX+1][iY] == END_X_XY)
+    			des[y*cols+x] = 255;
+    		if(s[iX+1][iY+1] == END_XY || s[iX+1][iY+1] == END_X_XY || s[iX+1][iY+1] == END_Y_XY)
+    			des[y*cols+x] = 255;
+    		if(s[iX][iY+1] == END_Y || s[iX][iY+1] == END_Y_XY || s[iX][iY+1] == END_Y_YX)
+    			des[y*cols+x] = 255;
+    		if(s[iX-1][iY+1] == END_YX || s[iX-1][iY+1] == END_X_XY || s[iX-1][iY+1] == END_Y_XY)
+    			des[y*cols+x] = 255;
+    		if(s[iX-1][iY] == END_X || s[iX-1][iY] == END_X_XY || s[iX-1][iY] == END_X_YX)
+    			des[y*cols+x] = 255;	
+    	}
+    	
+}
+
+__global__ void reduce(const int rows, const int cols, unsigned char *img, unsigned char *des){
+
+    	__shared__ unsigned char s[20][20];
+    	
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+		int iX = threadIdx.x+1;
+		int iY = threadIdx.y+1;
+    	
+    	if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	
+    	s[iX][iY] = img[y*cols+x];
+    	
+    
+    	if(iX < 2){
+    		if(x < 1) s[iX-1][iY] = 0;
+    		else{
+    			s[iX-1][iY] = img[y*cols+x-1];
+    			if(y < 1) s[iX-1][iY-1] = 0;
+    			else s[iX-1][iY-1] = img[(y-1)*cols+(x-1)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-1) s[iX+1][iY] = 0;
+    		else{
+    			s[iX+1][iY] = img[y*cols+(x+1)];
+    			if(y >= rows-1) s[iX+1][iY+1] = 0;
+    			else s[iX+1][iY+1] = img[(y+1)*cols+x+1];
+    		}
+    	}
+    	if(iY < 2){
+    		if(y < 1) s[iX][iY-1] = 0;
+    		else{
+    			s[iX][iY-1] = img[(y-1)*cols+x];
+    			if(x >= cols-1) s[iX+1][iY-1] = 0;
+    			else s[iX+1][iY-1] = img[(y-1)*cols+x+1];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-1) s[iX][iY+1] = 0;
+    		else{
+    			s[iX][iY+1] = img[(y+1)*cols+x];
+    			if(x < 1) s[iX-1][iY+1] = 0;
+    			else s[iX-1][iY+1] = img[(y+1)*cols+(x-1)];
+    		}
+    	}
+    	
+    	__syncthreads();
+    	unsigned char value = 0;
+    	if(s[iX][iY] >= END_X && s[iX][iY] <= END_Y_YX){
+    		if(s[iX-1][iY-1] == VERT || s[iX-1][iY-1] == HORI)
+    			value = 255;
+    		if(s[iX][iY-1] == VERT)
+    			value = 255;
+    		if(s[iX+1][iY-1] == VERT || s[iX+1][iY-1] == HORI)
+    			value = 255;
+    		if(s[iX+1][iY] == HORI)
+    			value = 255;
+    		if(s[iX+1][iY+1] == VERT || s[iX+1][iY+1] == HORI)
+    			value = 255;
+    		if(s[iX][iY+1] == VERT)
+    			value = 255;
+    		if(s[iX-1][iY+1] == VERT || s[iX-1][iY+1] == HORI)
+    			value = 255;
+    		if(s[iX-1][iY] == HORI)
+    			value = 255;	
+    		des[y*cols+x] = value;
+    	}
+    	else if(s[iX][iY] == NOISE)
+    		des[y*cols+x] = 0;
+    	//else
+    		//des[y*cols+x] = 0;
+}
+
+__global__ void compare(const int rows, const int cols, unsigned char *imgL, unsigned char *imgR, unsigned char *des, int shift){
+
+	__shared__ unsigned char l[48+8][8];
+	__shared__ unsigned char r[8][8];
+	
+	//__shared__ unsigned char accuracy[48];
+	__shared__ unsigned char compare[4];
+	
+	compare[0] = 0;//current sum
+	compare[1] = 0;// sugested disp
+	compare[2] = 0;// number of usefull points
+	compare[3] = 0;/// maxNumber of usefull points 
+
+	
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	
+	if(x < 0 || x >= cols-48 || y < 0 || y >= rows) return;
+	
+	int lX = threadIdx.x;
+	int lY = threadIdx.y;
+	int rX = threadIdx.x;
+	int rY = threadIdx.y;
+	
+	l[lX][lY] = imgR[y*cols+x];
+	l[lX+8][lY] = imgR[y*cols+(x+8)];
+	l[lX+16][lY] = imgR[y*cols+(x+16)];
+	l[lX+24][lY] = imgR[y*cols+(x+24)];
+	l[lX+32][lY] = imgR[y*cols+(x+32)];
+	l[lX+40][lY] = imgR[y*cols+(x+40)];
+	l[lX+48][lY] = imgR[y*cols+(x+48)];
+	r[lX][lY] = imgL[y*cols+x];
+	
+	
+	__syncthreads();
+	if(r[rX][rY]!=0){
+		compare[2]++;
+	}
+	__syncthreads();
+	int i = 0;
+	for(i = 0; i < 48; i++){
+		if(r[rX][rY]!=0 && l[lX+i][lY] == r[rX][rY]){
+			compare[0]++;
+		}
+		__syncthreads();
+		if(lX == 0 && lY == 0){
+			if(compare[2]>5){
+				if(compare[0] > compare[3]){
+					compare[3] = compare[0];
+					compare[1] = i;
+				}
+			}
+			compare[0] = 0;
+		}
+		__syncthreads();
+	}
+	
+	//if(compare[3] > 0.01)
+	des[y*cols+x] = compare[2]*20;
+	
+	
+}
+
+
+
+
 
 
 

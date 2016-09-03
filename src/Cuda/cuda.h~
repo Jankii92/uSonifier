@@ -14,7 +14,6 @@ namespace cv{
 			void cudaMemcpyDtoH(unsigned char *src, unsigned char *dest, int size);
 			void cudaInit(unsigned char** g_src1, unsigned char** g_src2, unsigned char** g_disp, const int rows, const int cols);
 			void cudaDestroy(unsigned char* g_src1, unsigned char* g_src2, unsigned char* g_disp);
-			void secondOrder(const int rows, const int cols, unsigned char *img, unsigned char *des, const int mode);
 		}
 	}	
 }
