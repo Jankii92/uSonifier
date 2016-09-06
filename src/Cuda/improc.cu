@@ -18,7 +18,7 @@
 #define VERT  50
 #define HORI  70
 #define DIAG  90
-#define NODE  200
+#define NODE  255
 #define NOISE  1
 
 
@@ -838,6 +838,271 @@ __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *i
 		
 }
 
+__global__ void edgeDetect2x_GPU (const int rows, const int cols, unsigned char *img, unsigned char *out1, unsigned char *out2, int th1, int th2){
+
+    	__shared__ unsigned char s[22][22];
+    	
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+		int iX = threadIdx.x+3;
+		int iY = threadIdx.y+3;
+    	
+    	if(x < 0 || x >= cols-1 || y < 0 || y >= rows-1) return;
+    	
+    	s[iX][iY] = img[y*cols+x];
+    	
+    
+    	if(iX < 6){
+    		if(x < 3) s[iX-3][iY] = 0;
+    		else{
+    			s[iX-3][iY] = img[y*cols+x-3];
+    			if(y < 3) s[iX-3][iY-3] = 0;
+    			else s[iX-3][iY-3] = img[(y-3)*cols+(x-3)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-3) s[iX+3][iY] = 0;
+    		else{
+    			s[iX+3][iY] = img[y*cols+(x+3)];
+    			if(y >= rows-3) s[iX+3][iY+3] = 0;
+    			else s[iX+3][iY+3] = img[(y+3)*cols+x+3];
+    		}
+    	}
+    	if(iY < 6){
+    		if(y < 3) s[iX][iY-3] = 0;
+    		else{
+    			s[iX][iY-3] = img[(y-3)*cols+x];
+    			if(x >= cols-3) s[iX+3][iY-3] = 0;
+    			else s[iX+3][iY-3] = img[(y-3)*cols+x+3];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-3) s[iX][iY+3] = 0;
+    		else{
+    			s[iX][iY+3] = img[(y+3)*cols+x];
+    			if(x < 3) s[iX-3][iY+3] = 0;
+    			else s[iX-3][iY+3] = img[(y+3)*cols+(x-3)];
+    		}
+    	}
+    	
+    	__syncthreads();
+    		
+    	//if(x < 0 || x >= cols || y < 0 || y >= rows) return;
+    	
+    	int sumYf = 0;
+    	int sumYs = 0; 
+    	int sumYss = 0;   
+    	int sumYsm = 0;   	
+    	int sumXf = 0;
+    	int sumXs = 0;
+    	int sumXss = 0;
+    	int sumXsm = 0;
+  
+// Y first		
+    	sumYf-=  s[iX-1][iY-1];
+    	sumYf-=2*s[iX  ][iY-1];
+    	sumYf-=  s[iX+1][iY-1];
+    	sumYf+=  s[iX-1][iY+1];
+    	sumYf+=2*s[iX  ][iY+1];
+    	sumYf+=  s[iX+1][iY+1];
+// Y second    	
+    	sumYs+=  s[iX-2][iY-2];
+    	sumYs+=4*s[iX-1][iY-2];
+    	sumYs+=6*s[iX  ][iY-2];
+    	sumYs+=4*s[iX+1][iY-2];
+    	sumYs+=  s[iX+2][iY-2];
+
+		sumYs-= 2*s[iX-2][iY];
+    	sumYs-= 8*s[iX-1][iY];
+    	sumYs-=12*s[iX  ][iY];
+    	sumYs-= 8*s[iX+1][iY];
+    	sumYs-= 2*s[iX+2][iY];
+    	
+    	sumYs+=  s[iX-2][iY+2];
+    	sumYs+=4*s[iX-1][iY+2];
+    	sumYs+=6*s[iX  ][iY+2];
+    	sumYs+=4*s[iX+1][iY+2];
+    	sumYs+=  s[iX+2][iY+2];
+// Y-1 second  	
+		sumYsm+=  s[iX-2][iY-3];
+    	sumYsm+=4*s[iX-1][iY-3];
+    	sumYsm+=6*s[iX  ][iY-3];
+    	sumYsm+=4*s[iX+1][iY-3];
+    	sumYsm+=  s[iX+2][iY-3];
+
+		sumYsm-= 2*s[iX-2][iY-1];
+    	sumYsm-= 8*s[iX-1][iY-1];
+    	sumYsm-=12*s[iX  ][iY-1];
+    	sumYsm-= 8*s[iX+1][iY-1];
+    	sumYsm-= 2*s[iX+2][iY-1];
+    	
+    	sumYsm+=  s[iX-2][iY+1];
+    	sumYsm+=4*s[iX-1][iY+1];
+    	sumYsm+=6*s[iX  ][iY+1];
+    	sumYsm+=4*s[iX+1][iY+1];
+    	sumYsm+=  s[iX+2][iY+1];
+// Y+1 second 
+    	sumYss+=  s[iX-2][iY-1];
+    	sumYss+=4*s[iX-1][iY-1];
+    	sumYss+=6*s[iX  ][iY-1];
+    	sumYss+=4*s[iX+1][iY-1];
+    	sumYss+=  s[iX+2][iY-1];
+
+		sumYss-= 2*s[iX-2][iY+1];
+    	sumYss-= 8*s[iX-1][iY+1];
+    	sumYss-=12*s[iX  ][iY+1];
+    	sumYss-= 8*s[iX+1][iY+1];
+    	sumYss-= 2*s[iX+2][iY+1];
+    	
+    	sumYss+=  s[iX-2][iY+3];
+    	sumYss+=4*s[iX-1][iY+3];
+    	sumYss+=6*s[iX  ][iY+3];
+    	sumYss+=4*s[iX+1][iY+3];
+    	sumYss+=  s[iX+2][iY+3];
+// X first
+		sumXf-=  s[iX-1][iY-1];
+    	sumXf-=2*s[iX-1][iY  ];
+    	sumXf-=  s[iX-1][iY+1];
+    	sumXf+=  s[iX+1][iY-1];
+    	sumXf+=2*s[iX+1][iY  ];
+    	sumXf+=  s[iX+1][iY+1];
+// X second
+    	sumXs+=  s[iX-2][iY-2];
+    	sumXs+=4*s[iX-2][iY-1];
+    	sumXs+=6*s[iX-2][iY  ];
+    	sumXs+=4*s[iX-2][iY+1];
+    	sumXs+=  s[iX-2][iY+2];
+
+		sumXs-= 2*s[iX][iY-2];
+    	sumXs-= 8*s[iX][iY-1];
+    	sumXs-=12*s[iX][iY  ];
+    	sumXs-= 8*s[iX][iY+1];
+    	sumXs-= 2*s[iX][iY+2];
+    	
+    	sumXs+=  s[iX+2][iY-2];
+    	sumXs+=4*s[iX+2][iY-1];
+    	sumXs+=6*s[iX+2][iY  ];
+    	sumXs+=4*s[iX+2][iY+1];
+    	sumXs+=  s[iX+2][iY+2];
+ // X-1 second   	
+    	sumXsm+=  s[iX-3][iY-2];
+    	sumXsm+=4*s[iX-3][iY-1];
+    	sumXsm+=6*s[iX-3][iY  ];
+    	sumXsm+=4*s[iX-3][iY+1];
+    	sumXsm+=  s[iX-3][iY+2];
+
+		sumXsm-= 2*s[iX-1][iY-2];
+    	sumXsm-= 8*s[iX-1][iY-1];
+    	sumXsm-=12*s[iX-1][iY  ];
+    	sumXsm-= 8*s[iX-1][iY+1];
+    	sumXsm-= 2*s[iX-1][iY+2];
+    	
+    	sumXsm+=  s[iX+1][iY-2];
+    	sumXsm+=4*s[iX+1][iY-1];
+    	sumXsm+=6*s[iX+1][iY  ];
+    	sumXsm+=4*s[iX+1][iY+1];
+    	sumXsm+=  s[iX+1][iY+2];
+// X+1 second
+    	sumXss+=  s[iX-1][iY-2];
+    	sumXss+=4*s[iX-1][iY-1];
+    	sumXss+=6*s[iX-1][iY  ];
+    	sumXss+=4*s[iX-1][iY+1];
+    	sumXss+=  s[iX-1][iY+2];
+
+		sumXss-= 2*s[iX+1][iY-2];
+    	sumXss-= 8*s[iX+1][iY-1];
+    	sumXss-=12*s[iX+1][iY  ];
+    	sumXss-= 8*s[iX+1][iY+1];
+    	sumXss-= 2*s[iX+1][iY+2];
+    	
+    	sumXss+=  s[iX+3][iY-2];
+    	sumXss+=4*s[iX+3][iY-1];
+    	sumXss+=6*s[iX+3][iY  ];
+    	sumXss+=4*s[iX+3][iY+1];
+    	sumXss+=  s[iX+3][iY+2];
+    	
+    	/*int value = sumXs/5+128;
+    	if (value > 255)
+   			out[y*cols+x] = 255;
+   		else if (value < 0)
+   			out[y*cols+x] = 0;
+   		else
+   			out[y*cols+x] = value; 
+		*/
+		if(sumXf > th1 || sumXf < -th1 || sumYf > th1 || sumYf < -th1){
+			if(sumXf > th1 || sumXf < -th1){
+				if(sumXs == 0) {
+					out1[y*cols+x] = 255;
+				}
+				if(!SameSign_GPU(&sumXs, &sumXss)){
+					if((sumXs+sumXss > 0 && sumXs < 0) ||  (sumXs+sumXss < 0 && sumXs > 0)){
+						out1[y*cols+x] = 255;
+					}
+				}
+				if(!SameSign_GPU(&sumXsm, &sumXs)){
+					if((sumXsm+sumXs < 0 && sumXs > 0) ||  (sumXs+sumXsm > 0 && sumXs < 0)){
+						out1[y*cols+x] = 255;
+					}
+				}
+			}		
+			if(sumYf > th1 || sumYf < -th1){
+				if(sumYs == 0){
+					out1[y*cols+x] = 255;
+				}
+				if(!SameSign_GPU(&sumYs, &sumYss)){
+					if((sumYs+sumYss > 0 && sumYs < 0) ||  (sumYs+sumYss < 0 && sumYs > 0)){
+						out1[y*cols+x] = 255;
+					}
+				}
+				if(!SameSign_GPU(&sumYs, &sumYsm)){
+					if((sumYsm+sumYs < 0 && sumYs > 0) ||  (sumYs+sumYsm > 0 && sumYs < 0)){
+						out1[y*cols+x] = 255;
+					}
+				}
+			}
+		}
+		else
+			out1[y*cols+x] = 0;
+			
+		if(sumXf > th2 || sumXf < -th2 || sumYf > th2 || sumYf < -th2){
+			if(sumXf > th2 || sumXf < -th2){
+				if(sumXs == 0) {
+					out2[y*cols+x] = 255;
+				}
+				if(!SameSign_GPU(&sumXs, &sumXss)){
+					if((sumXs+sumXss > 0 && sumXs < 0) ||  (sumXs+sumXss < 0 && sumXs > 0)){
+						out2[y*cols+x] = 255;
+					}
+				}
+				if(!SameSign_GPU(&sumXsm, &sumXs)){
+					if((sumXsm+sumXs < 0 && sumXs > 0) ||  (sumXs+sumXsm > 0 && sumXs < 0)){
+						out2[y*cols+x] = 255;
+					}
+				}
+			}		
+			if(sumYf > th2 || sumYf < -th2){
+				if(sumYs == 0){
+					out2[y*cols+x] = 255;
+					return;
+				}
+				if(!SameSign_GPU(&sumYs, &sumYss)){
+					if((sumYs+sumYss > 0 && sumYs < 0) ||  (sumYs+sumYss < 0 && sumYs > 0)){
+						out2[y*cols+x] = 255;
+					}
+				}
+				if(!SameSign_GPU(&sumYs, &sumYsm)){
+					if((sumYsm+sumYs < 0 && sumYs > 0) ||  (sumYs+sumYsm > 0 && sumYs < 0)){
+						out2[y*cols+x] = 255;
+					}
+				}
+			}
+		}
+			else
+				out2[y*cols+x] = 0;
+		
+}
+
 __global__ void prewittYsec_GPU (const int rows, const int cols, int *img, int *des, const int mode){
 		
 		int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -932,7 +1197,6 @@ __global__ void edgeDetect(const int rows, const int cols, int *firstX, int *fir
 				des[y*cols+x] = 255;
 				return;
 		}		
-
 		else 
 			des[y*cols+x] = 0;
 }
@@ -1312,69 +1576,332 @@ __global__ void reduce(const int rows, const int cols, unsigned char *img, unsig
     		//des[y*cols+x] = 0;
 }
 
-__global__ void compare(const int rows, const int cols, unsigned char *imgL, unsigned char *imgR, unsigned char *des, int shift){
+__global__ void extender(const int rows, const int cols, unsigned char *low, unsigned char *high, unsigned char *edge){
 
-	__shared__ unsigned char l[48+8][8];
-	__shared__ unsigned char r[8][8];
-	
-	//__shared__ unsigned char accuracy[48];
-	__shared__ unsigned char compare[4];
-	
-	compare[0] = 0;//current sum
-	compare[1] = 0;// sugested disp
-	compare[2] = 0;// number of usefull points
-	compare[3] = 0;/// maxNumber of usefull points 
+    	__shared__ unsigned char highS[18][18];
+    	__shared__ unsigned char lowS[32][32];
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+    	int y = blockIdx.y * blockDim.y + threadIdx.y;
 
+		int iX = threadIdx.x+8;
+		int iY = threadIdx.y+8;
+		
+		int X = threadIdx.x+1;
+		int Y = threadIdx.y+1;
+    	
+    	if(x < 0 || x >= cols-1 || y < 0 || y >= rows-1) return;
+    	
+    	highS[X][Y] = high[y*cols+x];
+    	
+    	lowS[iX][iY] = low[y*cols+x];
+    	
+		if(X < 2){
+    		if(x < 1) highS[X-1][Y] = 0;
+    		else{
+    			highS[X-1][Y] = high[y*cols+x-1];
+    			if(y < 1) highS[X-1][Y-1] = 0;
+    			else highS[X-1][Y-1] = high[(y-1)*cols+(x-1)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-1) highS[X+1][Y] = 0;
+    		else{
+    			highS[X+1][Y] = high[y*cols+(x+1)];
+    			if(y >= rows-1) highS[X+1][Y+1] = 0;
+    			else highS[X+1][Y+1] = high[(y+1)*cols+x+1];
+    		}
+    	}
+    	if(iY < 2){
+    		if(y < 1) highS[X][Y-1] = 0;
+    		else{
+    			highS[X][Y-1] = high[(y-1)*cols+x];
+    			if(x >= cols-1) highS[X+1][Y-1] = 0;
+    			else highS[X+1][Y-1] = high[(y-1)*cols+x+1];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-1) highS[X][Y+1] = 0;
+    		else{
+    			highS[X][Y+1] =high[(y+1)*cols+x];
+    			if(x < 1) highS[X-1][Y+1] = 0;
+    			else highS[X-1][Y+1] = high[(y+1)*cols+(x-1)];
+    		}
+    	}
+    
+    
+    	if(iX < 16){
+    		if(x < 8) lowS[iX-8][iY] = 0;
+    		else{
+    			lowS[iX-8][iY] = low[y*cols+x-8];
+    			if(y < 8) lowS[iX-8][iY-8] = 0;
+    			else lowS[iX-8][iY-8] = low[(y-8)*cols+(x-8)];  		
+    		}
+    	}
+    	if(iX >= blockDim.x){
+    		if(x >= cols-8) lowS[iX+8][iY] = 0;
+    		else{
+    			lowS[iX+8][iY] = low[y*cols+(x+8)];
+    			if(y >= rows-8) lowS[iX+8][iY+8] = 0;
+    			else lowS[iX+8][iY+8] = low[(y+8)*cols+x+8];
+    		}
+    	}
+    	if(iY < 16){
+    		if(y < 8) lowS[iX][iY-8] = 0;
+    		else{
+    			lowS[iX][iY-8] = low[(y-8)*cols+x];
+    			if(x >= cols-8) lowS[iX+8][iY-8] = 0;
+    			else lowS[iX+8][iY-8] = low[(y-8)*cols+x+8];
+    		}
+    	}
+    	if(iY >= blockDim.y){
+    		if(y >= rows-8) lowS[iX][iY+8] = 0;
+    		else{
+    			lowS[iX][iY+8] = low[(y+8)*cols+x];
+    			if(x < 8) lowS[iX-8][iY+8] = 0;
+    			else lowS[iX-8][iY+8] = low[(y+8)*cols+(x-8)];
+    		}
+    	}
+    	
+    	__syncthreads();
+    	
+    	if(highS[X][Y] == 0 || highS[X][Y] == NOISE){
+    	//	edge[y*cols+x] = 0;
+    		return;
+    	}
+    	if(highS[X][Y] == VERT || highS[X][Y] == HORI || highS[X][Y] == DIAG || highS[X][Y] == NODE){
+    	//	edge[y*cols+x] = highS[X][Y];
+    		return;
+    	}
+    	if(highS[X][Y] == NODE){
+    		if((highS[X][Y-1] >= END_X && highS[X][Y-1] <= END_Y_YX)|| (highS[X][Y+1] >= END_X && highS[X][Y+1] <= END_Y_YX)){
+    			edge[y*cols+x] = VERT;
+    			return;
+			} 
+			if((highS[X-1][Y] >= END_X && highS[X-1][Y] <= END_Y_YX)|| (highS[X+1][Y] >= END_X && highS[X+1][Y] <= END_Y_YX)){
+    			edge[y*cols+x] = VERT;
+    			return;
+			} 
+			if((highS[X-1][Y-1] >= END_X && highS[X-1][Y-1] <= END_Y_YX)|| (highS[X+1][Y-1] >= END_X && highS[X+1][Y-1] <= END_Y_YX)){
+    			edge[y*cols+x] = DIAG;
+    			return;
+			} 
+			if((highS[X-1][Y+1] >= END_X && highS[X-1][Y+1] <= END_Y_YX) || (highS[X+1][Y+1] >= END_X && highS[X+1][Y+1] <= END_Y_YX)){
+    			edge[y*cols+x] = DIAG;
+    			return;
+			} 
+			return;
+    	}
+    	__syncthreads();
+    	if(highS[X][Y] >= END_X && highS[X][Y] <= END_Y_YX){
+    		int xp = 0;
+    		int yp = 0;
+    		
+    		int sourceDirX = 0;
+    		int sourceDirY = 0;
+    		
+    		
+    		if(lowS[iX][iY] == VERT || lowS[iX][iY] == HORI || lowS[iX][iY] == DIAG){
+    			edge[y*cols+x] = lowS[iX][iY];
+    			if(highS[X][Y] == END_X){
+    				if(highS[X-1][Y] != 0)	sourceDirX = 1;
+    				else sourceDirX = -1;
+    			}
+    			else if(highS[X][Y] == END_Y){
+    				if(highS[X][Y-1] != 0)	sourceDirY = 1;
+    				else sourceDirY = -1;
+    			}
+    			else if(highS[X][Y] == END_XY || highS[X][Y] == END_X_XY || highS[X][Y] == END_Y_XY){
+    				if(highS[X-1][Y-1] != 0){
+    					sourceDirX = 1;
+    					sourceDirY = 1;
+    				}else{
+    					sourceDirX = -1;
+    					sourceDirY = -1;
+    				}
+    			}
+    			else if(highS[X][Y] == END_YX || highS[X][Y] == END_X_YX || highS[X][Y] == END_Y_YX){
+    				if(highS[X-1][Y+1] != 0){
+    					sourceDirX = 1;
+    					sourceDirY = -1;
+    				}else{
+    					sourceDirX = -1;
+    					sourceDirY = +1;
+    				}
+    			}
+    		}else 
+    			edge[y*cols+x] = highS[X][Y];
+    			
+    		int type = 0;
+    		while( iX+xp > 0 && iY+yp > 0 && iX+xp < 32 && iY+yp < 32){
+    			if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+    				edge[(y+yp)*cols+(x+xp)] = lowS[iX+xp][iY+yp];
+    			}
+    			type = lowS[iX+xp][iY+yp];
+    			xp+=sourceDirX;
+    			yp+=sourceDirY;
+    			if(type == HORI){
+    				if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+    					if(sourceDirX > 0){
+    						sourceDirX = 1;
+    						sourceDirY = 0;
+    					}else{
+    						sourceDirX = -1;
+    						sourceDirY = 0;
+    					}
+    				}
+    				else if(lowS[iX+xp][iY+yp-1] == HORI || lowS[iX+xp][iY+yp-1] == VERT || lowS[iX+xp][iY+yp-1] == DIAG){
+    					if(sourceDirX > 0){
+    						sourceDirX = 1;
+    						sourceDirY = -1;
+    					}else{
+    						sourceDirX = -1;
+    						sourceDirY = -1;
+    					}
+    				}
+    				else if(lowS[iX+xp][iY+yp+1] == HORI || lowS[iX+xp][iY+yp+1] == VERT || lowS[iX+xp][iY+yp+1] == DIAG){
+    					if(sourceDirX > 0){
+    						sourceDirX = 1;
+    						sourceDirY = 1;
+    					}else{
+    						sourceDirX = -1;
+    						sourceDirY = 1;
+    					}
+    				}
+    				
+    			}else if(type == VERT){
+    				if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+    					if(sourceDirY > 0){
+    						sourceDirX = 0;
+    						sourceDirY = 1;
+    					}else{
+    						sourceDirX = 0;
+    						sourceDirY = -1;
+    					}
+    				}
+    				else if(lowS[iX+xp-1][iY+yp] == HORI || lowS[iX+xp-1][iY+yp] == VERT || lowS[iX+xp-1][iY+yp] == DIAG){
+    					if(sourceDirY > 0){
+    						sourceDirX = -1;
+    						sourceDirY = 1;
+    					}else{
+    						sourceDirX = -1;
+    						sourceDirY = -1;
+    					}
+    				}
+    				else if(lowS[iX+xp+1][iY+yp] == HORI || lowS[iX+xp+1][iY+yp] == VERT || lowS[iX+xp+1][iY+yp] == DIAG){
+    					if(sourceDirY > 0){
+    						sourceDirX = 1;
+    						sourceDirY = 1;
+    					}else{
+    						sourceDirX = 1;
+    						sourceDirY = -1;
+    					}
+    				}
+   
+    			}else if(type == DIAG){
+    				if(sourceDirY == 1){
+    					if(sourceDirX == 1){
+    						if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+								sourceDirX = 1;
+								sourceDirY = 1;
+    						}else if(lowS[iX+xp+1][iY+yp] == HORI || lowS[iX+xp+1][iY+yp] == VERT || lowS[iX+xp+1][iY+yp] == DIAG){
+								sourceDirX = 1;
+								sourceDirY = 0;
+    						}else if(lowS[iX+xp][iY+yp+1] == HORI || lowS[iX+xp][iY+yp+1] == VERT || lowS[iX+xp][iY+yp+1] == DIAG){
+								sourceDirX = 0;
+								sourceDirY = 1;
+    						}
+    					}else{
+    						if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+								sourceDirX = -1;
+								sourceDirY = 1;
+    						}else if(lowS[iX+xp-1][iY+yp] == HORI || lowS[iX+xp-1][iY+yp] == VERT || lowS[iX+xp-1][iY+yp] == DIAG){
+								sourceDirX = -1;
+								sourceDirY = 0;
+    						}else if(lowS[iX+xp][iY+yp+1] == HORI || lowS[iX+xp][iY+yp+1] == VERT || lowS[iX+xp][iY+yp+1] == DIAG){
+								sourceDirX = 0;
+								sourceDirY = 1;
+    						}
+    					}
+    				}else{
+    					if(sourceDirX == 1){
+							if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+								sourceDirX = 1;
+								sourceDirY = -1;
+    						}else if(lowS[iX+xp+1][iY+yp] == HORI || lowS[iX+xp+1][iY+yp] == VERT || lowS[iX+xp+1][iY+yp] == DIAG){
+								sourceDirX = 1;
+								sourceDirY = 0;
+    						}else if(lowS[iX+xp][iY+yp-1] == HORI || lowS[iX+xp][iY+yp-1] == VERT || lowS[iX+xp][iY+yp-1] == DIAG){
+								sourceDirX = 0;
+								sourceDirY = -1;
+    						}
+    					}else{
+							if(lowS[iX+xp][iY+yp] == HORI || lowS[iX+xp][iY+yp] == VERT || lowS[iX+xp][iY+yp] == DIAG){
+								sourceDirX = -1;
+								sourceDirY = -1;
+    						}else if(lowS[iX+xp-1][iY+yp] == HORI || lowS[iX+xp-1][iY+yp] == VERT || lowS[iX+xp-1][iY+yp] == DIAG){
+								sourceDirX = -1;
+								sourceDirY = 0;
+    						}else if(lowS[iX+xp][iY+yp-1] == HORI || lowS[iX+xp][iY+yp-1] == VERT || lowS[iX+xp][iY+yp-1] == DIAG){
+								sourceDirX = 0;
+								sourceDirY = -1;
+    						}
+    					}
+    				}
+    			}
+    			else {
+    				sourceDirX = 0;
+    				sourceDirY = 0;
+    				break;
+    			}
+    		}   		
+    	}
+}
+
+
+
+__global__ void difference(const int rows, const int cols, unsigned char *in1, unsigned char *in2, unsigned char *dif){
 	
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	unsigned char i1 = in1[y*cols+x];
+	unsigned char i2 = in2[y*cols+x];
 	
-	
-	if(x < 0 || x >= cols-48 || y < 0 || y >= rows) return;
-	
-	int lX = threadIdx.x;
-	int lY = threadIdx.y;
-	int rX = threadIdx.x;
-	int rY = threadIdx.y;
-	
-	l[lX][lY] = imgR[y*cols+x];
-	l[lX+8][lY] = imgR[y*cols+(x+8)];
-	l[lX+16][lY] = imgR[y*cols+(x+16)];
-	l[lX+24][lY] = imgR[y*cols+(x+24)];
-	l[lX+32][lY] = imgR[y*cols+(x+32)];
-	l[lX+40][lY] = imgR[y*cols+(x+40)];
-	l[lX+48][lY] = imgR[y*cols+(x+48)];
-	r[lX][lY] = imgL[y*cols+x];
-	
-	
-	__syncthreads();
-	if(r[rX][rY]!=0){
-		compare[2]++;
-	}
-	__syncthreads();
-	int i = 0;
-	for(i = 0; i < 48; i++){
-		if(r[rX][rY]!=0 && l[lX+i][lY] == r[rX][rY]){
-			compare[0]++;
-		}
-		__syncthreads();
-		if(lX == 0 && lY == 0){
-			if(compare[2]>5){
-				if(compare[0] > compare[3]){
-					compare[3] = compare[0];
-					compare[1] = i;
-				}
-			}
-			compare[0] = 0;
-		}
-		__syncthreads();
-	}
-	
-	//if(compare[3] > 0.01)
-	des[y*cols+x] = compare[2]*20;
-	
+	if((i1 == 0 || (i1 >= END_X &&  i1 <= END_Y_YX)) && (i2 == HORI || i2 == VERT || i2 == DIAG)) dif[y*cols+x] = 255;
+	else  dif[y*cols+x] = 0;
 	
 }
+
+__global__ void inprove(const int rows, const int cols, unsigned char *in1, unsigned char *in2, unsigned char *out){
+	
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	unsigned char i1 = in1[y*cols+x];
+	unsigned char i2 = in2[y*cols+x];
+	
+	if(i1 == HORI || i1 == VERT || i1 == DIAG){
+		out[y*cols+x] = i1;
+		return;
+	}
+	if(i2 == HORI || i2 == VERT || i2 == DIAG){
+		out[y*cols+x] = i2;
+		return;
+	}
+	if(i2 >= END_X && i2 <= END_Y_YX){
+		out[y*cols+x] = i2;
+		return;
+	}
+	if(i1 >= END_X && i1 <= END_Y_YX){
+		out[y*cols+x] = i1;
+		return;
+	}	
+	if(i1 == NODE){
+		out[y*cols+x] = i1;
+		return;
+	}
+	else  out[y*cols+x] = 0;
+	
+}
+
 
 
 

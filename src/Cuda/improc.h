@@ -27,6 +27,7 @@ __global__ void prewittFS_GPU (const int rows, const int cols, int *img, int *de
 
 __global__ void edgeDetect(const int rows, const int cols, int *firstX, int *firstY, int *secX, int *secY,int *des);
 __global__ void edgeDetect_GPU (const int rows, const int cols, unsigned char *img, unsigned char *out, int th);
+__global__ void edgeDetect2x_GPU (const int rows, const int cols, unsigned char *img, unsigned char *out1, unsigned char *out2, int th1, int th2);
 
 
 //--------------  OTHER     --------------//
@@ -43,6 +44,12 @@ __global__ void extend(const int rows, const int cols, unsigned char *img, unsig
 __global__ void reduce(const int rows, const int cols, unsigned char *img, unsigned char *des);
 
 __global__ void compare(const int rows, const int cols, unsigned char *imgL, unsigned char *imgR, unsigned char *des, int shift);
+
+__global__ void extender(const int rows, const int cols, unsigned char *low, unsigned char *high, unsigned char *edge);
+
+
+__global__ void difference(const int rows, const int cols, unsigned char *in1, unsigned char *in2, unsigned char *dif);
+__global__ void inprove(const int rows, const int cols, unsigned char *in1, unsigned char *in2, unsigned char *out);
 
 
 

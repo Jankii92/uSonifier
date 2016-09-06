@@ -44,6 +44,8 @@ int main(void){
 	unsigned char* g_imgR;
 	unsigned char* g_disp;
 	
+	unsigned char** g_temps = initDisp(sizeof(unsigned char)*WIDTH*HEIGHT);
+	
 	cudaInit(&g_imgL, &g_imgR, &g_disp, HEIGHT, WIDTH);
 	
 	
@@ -72,17 +74,17 @@ int main(void){
 		
 		cameraCtrl.Update();
 		
-		imshow("Left",left);
-		imshow("Right", right);
 		auto start_blur = std::chrono::system_clock::now();
 
-		dispmj(left, right, disp, g_imgL, g_imgR, g_disp, shift);
+		dispmj(left, right, disp, g_imgL, g_imgR, g_disp, g_temps);
 
 		auto end_blur = std::chrono::system_clock::now();
 		
 		disp.convertTo(dispOut,CV_8UC1); 
 		imshow("Disp", dispOut);
   		
+		imshow("Left",left);
+		imshow("Right", right);
 		counter++;
 		auto stop = std::chrono::system_clock::now();
   		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -101,7 +103,7 @@ int main(void){
 		
 	}
 	
-	cudaDestroy(g_imgL, g_imgR, g_disp);
+	cudaDestroy(g_imgL, g_imgR, g_disp, g_temps);
 	/*
 	Mat image;
 	
