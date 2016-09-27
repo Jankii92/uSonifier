@@ -15,6 +15,8 @@ using namespace cv::gpu;
 int main(void){
 	int counter = 0;
 	int counter_sec = 0;
+	cudaDeviceProp devProp;
+    cudaGetDeviceProperties(&devProp,0);
 	// Open DUO camera and start capturing
 	printf("DUOLib Version:       v%s\n", GetLibVersion());
 	if(!OpenDUOCamera(WIDTH, HEIGHT, FPS))
@@ -32,6 +34,10 @@ int main(void){
 	cv::Mat disp( HEIGHT, WIDTH, CV_8UC1 );
 	cv::Mat dispOut( HEIGHT, WIDTH, CV_8UC1 );
 	
+	cv::Mat dispOCV( HEIGHT, WIDTH, CV_8UC1 );
+	
+	//cv::Mat dispOCV( HEIGHT, WIDTH, CV_32F );
+	
 	setImageForCuda(left, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(right, sizeof(unsigned char)*WIDTH*HEIGHT);	
 	setImageForCuda(leftOut, sizeof(unsigned char)*WIDTH*HEIGHT);	
@@ -44,8 +50,14 @@ int main(void){
 	unsigned char* g_imgR;
 	unsigned char* g_disp;
 	
-	unsigned char** g_temps = initDisp(sizeof(unsigned char)*WIDTH*HEIGHT);
+	unsigned int* g_params;
 	
+	//unsigned char** g_tempsC = initDisp2C(sizeof(unsigned char)*WIDTH*HEIGHT);
+	//unsigned int** g_tempsI = initDisp2I(sizeof(unsigned int)*WIDTH*HEIGHT);
+	unsigned char** g_tempsC = initDisp3C(sizeof(unsigned char)*WIDTH*HEIGHT);
+	unsigned short** g_tempsUS = initDisp3US(sizeof(unsigned int)*WIDTH*HEIGHT);
+	
+	//unsigned char** g_temps = initDisp(sizeof(unsigned char)*WIDTH*HEIGHT);
 	cudaInit(&g_imgL, &g_imgR, &g_disp, HEIGHT, WIDTH);
 	
 	
@@ -53,38 +65,78 @@ int main(void){
 	SetExposure(20);
 	SetLed(0);
 	EnableUndistort();
-	//StereoBM sbm;
+	
+	
+	namedWindow( "DispCV", WINDOW_AUTOSIZE );
+	gpu::GpuMat gL, gR, dst;
+	gpu::StereoBM_GPU sbm(2, 64, 11);
+	//gpu::DisparityBilateralFilter DBFilter(64 ,3, 2);
+	Mat ocvDisp;
+	
+	
 	CameraCtrl cameraCtrl( &left, SetExposure, SetGain, SetLed, false );
 	
-	namedWindow( "Left", WINDOW_AUTOSIZE );
-	namedWindow( "Right", WINDOW_AUTOSIZE );
+	//namedWindow( "Left", WINDOW_AUTOSIZE );
+	//namedWindow( "Right", WINDOW_AUTOSIZE );
 	namedWindow( "Disp", WINDOW_AUTOSIZE );
+	namedWindow( "DispCV", WINDOW_AUTOSIZE );
 	
 	int shift = 0;
 	auto start = std::chrono::system_clock::now();
-	while((cvWaitKey(1) & 0xff) != 27)
+	
+	Mat cm_img0, image1, image2;
+	image1 = imread("../data/im1.png");
+	image2 = imread("../data/im0.png");
+	
+	cvtColor(image1(Rect(0,0,640,480)), image1, CV_BGR2GRAY);
+	cvtColor(image2(Rect(0,0,640,480)), image2, CV_BGR2GRAY);
+	//ocvDisp = imread("../data/disp0GT.bmp", 0);
+	//ocvDisp.convertTo(ocvDisp,CV_8UC1); 
+    //applyColorMap(4*ocvDisp, ocvDisp, COLORMAP_JET);
+	while((cvWaitKey(5) & 0xff) != 27)
 	{
 		// Capture DUO frame
 		
     	
 		PDUOFrame pFrameData = GetDUOFrame();
 		if(pFrameData == NULL) continue;
+		
+	//
 		cpyImageForCuda((unsigned char*)pFrameData->leftData, left);
 		cpyImageForCuda((unsigned char*)pFrameData->rightData, right);
+		
+		
+		//cpyImageForCuda((unsigned char*)(image1.data), left);
+		//cpyImageForCuda((unsigned char*)(image2.data), right);
 		
 		cameraCtrl.Update();
 		
 		auto start_blur = std::chrono::system_clock::now();
 
-		dispmj(left, right, disp, g_imgL, g_imgR, g_disp, g_temps);
-
+		//dispmj(left, right, disp, g_imgL, g_imgR, g_disp, g_temps);
+		//disp2mj(left, right, disp, g_imgL, g_imgR, g_disp, g_tempsC, g_tempsI);
+		disp3mj(left, right, disp, g_imgL, g_imgR, g_disp, g_tempsC, g_tempsUS);
 		auto end_blur = std::chrono::system_clock::now();
 		
 		disp.convertTo(dispOut,CV_8UC1); 
+		//bitwise_not ( dispOut, dispOut );
+		//distanceTransform(dispOut, dispOut, CV_DIST_C, 3);
+		//dispOut.convertTo(dispOut,CV_8UC1); 
+        // Apply the colormap:
+        
+        applyColorMap(dispOut, dispOut, COLORMAP_JET);
 		imshow("Disp", dispOut);
-  		
-		imshow("Left",left);
-		imshow("Right", right);
+		//imshow("Left",left);
+		//imshow("Right", right);
+		
+		/*gL.upload(left);
+		gR.upload(right);
+  		sbm(gR, gL, dst);
+  		dst.download(ocvDisp);
+  		ocvDisp.convertTo(ocvDisp,CV_8UC1); 
+        applyColorMap(4*ocvDisp, ocvDisp, COLORMAP_JET);*/
+	
+		imshow("DispCV", left);
 		counter++;
 		auto stop = std::chrono::system_clock::now();
   		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -96,14 +148,17 @@ int main(void){
 			//system("clear");	
 			shift++;
 			std::cout <<"FPS: "<< counter <<" "<< duration.count()/(float)counter <<  std::endl;
-			std::cout <<"BLUR: "<< duration_blur.count()/1000.0f << "ms" << std::endl;
+			std::cout <<"DISPARITY: "<< duration_blur.count()/1000.0f << "ms" << std::endl;
 			counter = 0;
 			start = std::chrono::system_clock::now();
 		}
 		
 	}
+	waitKey(0);
+	//cudaDestroy(g_imgL, g_imgR, g_disp, g_temps);
+	//cudaDestroyDisp2(g_imgL, g_imgR, g_disp, g_tempsC, g_tempsI);
+	cudaDestroyDisp3(g_imgL, g_imgR, g_disp, g_tempsC, g_tempsUS);
 	
-	cudaDestroy(g_imgL, g_imgR, g_disp);
 	/*
 	Mat image;
 	

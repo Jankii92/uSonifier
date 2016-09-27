@@ -14,7 +14,15 @@ namespace cv{
 			void cudaMemcpyDtoH(unsigned char *src, unsigned char *dest, int size);
 			void cudaInit(unsigned char** g_src1, unsigned char** g_src2, unsigned char** g_disp, const int rows, const int cols);
 			void cudaDestroy(unsigned char* g_src1, unsigned char* g_src2, unsigned char* g_disp, unsigned char** g_temps);
+			void cudaDestroyDisp2(unsigned char* g_src1, unsigned char* g_src2, unsigned char* g_disp, unsigned char** g_tempsC, unsigned int** g_tempsI);
+			void cudaDestroyDisp3(unsigned char* g_src1, unsigned char* g_src2, unsigned char* g_disp, unsigned char** g_tempsC, unsigned short** g_tempsUS);
 			unsigned char** initDisp(const int size);
+			unsigned int** initDisp2I(const int size);
+			unsigned char** initDisp2C(const int size);
+			unsigned short** initDisp3US(const int size);
+			unsigned char** initDisp3C(const int size);
+			void disp2(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out, unsigned char** tempsC, unsigned int** tempsI);
+			void disp3(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out, unsigned char** tempsC, unsigned short** tempsUS);
 		}
 	}	
 }

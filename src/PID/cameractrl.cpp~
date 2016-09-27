@@ -14,7 +14,7 @@ CameraCtrl::CameraCtrl( cv::Mat * img, SetExposureType SetExposure, SetGainType 
 	KI					= 0.4;
 	KP					= 0.1;
 
-	histeresis			= 20;
+	histeresis			= 30;
 	firstRun			= false;
 
 	intError			= 0;
@@ -213,8 +213,8 @@ void CameraCtrl::Update()
 	KP = (1-t)*KPNew + t*KPOld;
 	//printf( "t=%1.4f, th=%1.4f\n", t, th);
 
-	const float histeresisOld = 30;
-	const float histeresisNew = 70;
+	const float histeresisOld = 20;
+	const float histeresisNew = 95;
 
 	histeresis = (th < 1)*histeresisNew + (th>=1)*histeresisOld;
 	
@@ -234,19 +234,19 @@ void CameraCtrl::Update()
 	{
 		gain     = out - 200;
 		diodes   = 100;
-		exposure = 100-20;
+		exposure = 100;
 	}
 	else if( out > 100 )
 	{
 		gain     = 0;
 		diodes   = out - 100;
-		exposure = 100-20;
+		exposure = 100;
 	}
 	else
 	{
 		gain      = 0;
 		diodes    = 0;
-		exposure  = out-10;
+		exposure  = out;
 	}
 	
 
