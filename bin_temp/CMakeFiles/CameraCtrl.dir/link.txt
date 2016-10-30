@@ -1,0 +1,2 @@
+/usr/bin/ar cr libCameraCtrl.a  CMakeFiles/CameraCtrl.dir/src/PID/cameractrl.cpp.o
+/usr/bin/ranlib libCameraCtrl.a

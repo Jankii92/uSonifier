@@ -1,8 +1,10 @@
 #include "cuda.h"
 #include "improc.h"
+#include "macher.h"
 #include <stdio.h>
 #include <chrono>
 #include <device_functions.h>
+
 
 #include <iostream>
 
@@ -13,32 +15,6 @@
 
 
 using namespace std;
-
-
-texture<short2> pbaTexColor;
-
-
-__global__ void kernelDT(unsigned char* output, int size, float threshold2, short xm, short ym, short xM, short yM)
-//Input:    pbaTexColor: closest-site-ids per pixel, i.e. FT
-//Output:   output: DT
-{
-	int tx = blockIdx.x * blockDim.x + threadIdx.x;
-	int ty = blockIdx.y * blockDim.y + threadIdx.y;
-		
-	if (tx>xm && ty>ym && tx<xM && ty<yM)									//careful not to index outside the image..
-	{	
-  	  int    id     = ty*size+tx;
-	  short2 voroid = tex1Dfetch(pbaTexColor,id);							//get the closest-site to tx,ty into voroid.x,.y
-	  float  d2     = (tx-voroid.x)*(tx-voroid.x)+(ty-voroid.y)*(ty-voroid.y);
-	  if(d2 > 255*255){
-	  	output[id] = 255;
-	  }else{
-	  
-	  	output[id]    = (unsigned char)sqrtf(d2);											//save the Euclidean DT
-	  	}
-    }
-}
-
 
 void cv::gpu::mj::blur(const int rows,const int cols, const int k, unsigned char *src, unsigned char* dst){
 	
@@ -127,10 +103,7 @@ unsigned char** cv::gpu::mj::initDisp(const int size){
 	} 
 	return temps;
 }
-
-
-
-
+/*
 void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, unsigned char *g_srcR, unsigned char* g_disp, unsigned char** temps){
 	
 	int N = WIDTH;
@@ -172,26 +145,6 @@ void cv::gpu::mj::disp(const int rows,const int cols, unsigned char *g_srcL, uns
 	cudaDeviceSynchronize();
 	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_L_high_out, g_L_highEdge);
 	edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_R_high_out, g_R_highEdge);
-	
-	
-	//cudaMemset(g_R_low_ext, 0, size);
-	//edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_R_low_ext, g_R_lowEdge);
-	//edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_R_high_out, g_R_highEdge);
-	
-	//cudaDeviceSynchronize();
-	//extender<<<numbBlocks, threadsPerBlock>>>( rows, cols, g_L_lowEdge, g_L_highEdge, g_L_low_ext);
-	//extender<<<numbBlocks, threadsPerBlock>>>( rows, cols, g_R_lowEdge, g_R_highEdge, g_R_low_ext);
-	
-	//cudaDeviceSynchronize();
-	
-	//inprove<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_L_highEdge, g_L_low_ext, g_L_high_out);
-	//inprove<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_R_highEdge, g_R_low_ext, g_R_high_out);
-	
-	//cudaDeviceSynchronize();
-		
-	//edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_L_high_out, g_L_lowEdge);
-	//edgeTypeDetect<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_R_high_out, g_R_lowEdge);
-	//------------difference<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcL, g_tmpLOUT,  g_disp);
 	
 	cudaDeviceSynchronize();
 	
@@ -295,14 +248,6 @@ unsigned int** cv::gpu::mj::initDisp2I(const int size){
 	
 	fillInitParams<<<1, 1>>>(t);
 	
-	/*{300,300,300,300,
-				300,300,300,300,
-				200,200,200,160,
-				165,145,120,100,
-				100,100,100,100,
-				100,100,90,90,
-				80,70,60,60,
-				60,60,60,60};*/
 	
 	return temps;
 }
@@ -399,13 +344,8 @@ void cv::gpu::mj::disp2(const int rows,const int cols, unsigned char *g_srcL, un
 	cudaDeviceSynchronize();
 	median5x5Edge<<<numbBlocks4, threadsPerBlock4>>>(rows, cols, g_L_edge, g_edgeMached,  g_disp);
 	cudaDeviceSynchronize();
-	/*blur5x5Edge<<<numbBlocks4, threadsPerBlock4>>>(rows, cols, g_L_edge, g_R_edge, g_edgeMached);
-	cudaDeviceSynchronize();
-	blur5x5Edge<<<numbBlocks4, threadsPerBlock4>>>(rows, cols, g_L_edge, g_edgeMached, g_R_edge);
-	cudaDeviceSynchronize();*/
-	//blend_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_L_edge, g_R_edge, g_disp, 0.5, 1);
 	
-}
+}*/
 
 unsigned char** cv::gpu::mj::initDisp3C(const int size){
 	
@@ -418,31 +358,32 @@ unsigned char** cv::gpu::mj::initDisp3C(const int size){
 }
 __global__ void fillInitParamsDisp3(unsigned short * t){
 	if( threadIdx.x == 0 &&  threadIdx.y == 0){ 
-		t[0 ] = 4*32; 
-		t[1 ] = 4*32; 
-		t[2 ] = 4*32; 
-		t[3 ] = 4*31;
-		t[4 ] = 4*30; 
-		t[5 ] = 4*29; 
-		t[6 ] = 4*28; 
-		t[7 ] = 4*27;
-		t[8 ] = 4*26; 
-		t[9 ] = 4*25; 
-		t[10] = 4*24; 
-		t[11] = 4*23;
-		t[12] = 4*22; 
-		t[13] = 4*21; 
-		t[14] = 4*20; 
-		t[15] = 4*19;
-		t[16] = 4*18; 
-		t[17] = 4*17; 
-		t[18] = 4*16; 
-		t[19] = 4*17;
-		t[20] = 4*16; 
-		t[21] = 4*15; 
-		t[22] = 4*16; 
-		t[23] = 4*13; 
-		t[24] = 4*12; 
+	int multi = 3;
+		t[0 ] = multi*45; 
+		t[1 ] = multi*40; 
+		t[2 ] = multi*35; 
+		t[3 ] = multi*30;
+		t[4 ] = multi*29; 
+		t[5 ] = multi*28; 
+		t[6 ] = multi*25; 
+		t[7 ] = multi*20;
+		t[8 ] = multi*18; 
+		t[9 ] = multi*16; 
+		t[10] = multi*14; 
+		t[11] = multi*12;
+		t[12] = multi*11; 
+		t[13] = multi*10; 
+		t[14] = multi*9; 
+		t[15] = multi*8;
+		t[16] = multi*7; 
+		t[17] = multi*6; 
+		t[18] = multi*5; 
+		t[19] = multi*4;
+		t[20] = multi*3; 
+		t[21] = multi*2; 
+		t[22] = multi*1; 
+		t[23] = multi*1; 
+		t[24] = multi*1; 
 	}
 
 }
@@ -463,12 +404,14 @@ unsigned short** cv::gpu::mj::initDisp3US(const int size){
 
 void cv::gpu::mj::disp3(const int rows,const int cols, unsigned char *g_srcL, unsigned char *g_srcR, unsigned char* g_disp, unsigned char** tempsC, unsigned short** tempsUS ){
 	
-	int N = WIDTH;
-	int M = HEIGHT;
+	int w = WIDTH;
+	int h = HEIGHT;
+	
+	size_t offset = 0;
 	
 	unsigned char* g_L_edge = tempsC[0];
 	unsigned char* g_R_edge = tempsC[1];
-	unsigned char* g_edgeMached = tempsC[2];
+	//unsigned char* g_udisp = tempsC[2];
 	
 	unsigned short* g_match_8 = tempsUS[0];
 	unsigned short* g_w = tempsUS[1];
@@ -478,32 +421,28 @@ void cv::gpu::mj::disp3(const int rows,const int cols, unsigned char *g_srcL, un
 	cudaMemset(g_disp, 0, size);
 	cudaMemset(g_L_edge, 0, size);
 	cudaMemset(g_R_edge, 0, size);
-
+    cudaBindTexture2D(&offset, tex2Dleft,  g_srcL, ca_desc0, w, h, w*4);
+    cudaBindTexture2D(&offset, tex2Dright, g_srcR, ca_desc1, w, h, w*4);
+    
 	cudaDeviceSynchronize();
 	dim3 threadsPerBlock(16, 16);
-	dim3 numbBlocks(N/ threadsPerBlock.x,M/ threadsPerBlock.y); 
+	dim3 numbBlocks(w/ threadsPerBlock.x,h/ threadsPerBlock.y); 
 	edgeDetect_GPU<<<numbBlocks, threadsPerBlock>>>(rows, cols, g_srcL, g_L_edge, 50);
-	
 	cudaDeviceSynchronize();
 	dim3 threadsPerBlock24(24, 24);
-	dim3 numbBlocks24(N/ threadsPerBlock24.x,M/ threadsPerBlock24.y); 
+	dim3 numbBlocks24(w/ threadsPerBlock24.x,h/ threadsPerBlock24.y); 
 	findDistanceFast<<<numbBlocks24, threadsPerBlock24,64*64*sizeof(unsigned char) >>>(rows, cols, g_L_edge, g_R_edge);
 	cudaDeviceSynchronize();
 	dim3 threadsPerBlockDisp16(64, 16);
-	dim3 numbBlocksDisp16(N/16, M/16); 
-	edgeMatch8w16<<<numbBlocksDisp16,threadsPerBlockDisp16,16*64*2*sizeof(unsigned short)>>>(rows, cols, g_srcL, g_srcR, g_match_8);
-	//perform 8x8 block maching for future 16 and 32 usage
- 	/*cudaDeviceSynchronize();
-	dim3 threadsPerBlockDisp64(1, 1, 64);
-	dim3 numbBlocksDisp64(N/1, M/1, 1); 
-	brain11<<<numbBlocksDisp64, threadsPerBlockDisp64>>>( rows, cols, g_R_edge, g_match_8, g_w, g_disp);
- 	*/
- 	
+	dim3 numbBlocksDisp16(w/16, h/16); 
+	edgeMatch8w16<<<numbBlocksDisp16,threadsPerBlockDisp16,16*64*2*sizeof(unsigned short)>>>(rows, cols, g_srcL, g_srcR, g_match_8);	
  	dim3 threadsPerBlockDisp64(16, 16, 2);
-	dim3 numbBlocksDisp64(N/16, M/16, 1); 
- 	//brain2<<<numbBlocksDisp64, threadsPerBlockDisp64, 3*3*64*sizeof(unsigned int)+2*2*64*sizeof(unsigned int)+6*6*64*sizeof(unsigned short)>>>( rows, cols, g_R_edge, g_match_8, g_w, g_disp);
- 	int extSize = 3*3*64*sizeof(unsigned int)+6*6*64*sizeof(unsigned short)+16*16*64*sizeof(unsigned short)+4*4*64*sizeof(unsigned int)+4*4*32*sizeof(unsigned char);
- 	brain3<<<numbBlocksDisp64, threadsPerBlockDisp64, extSize>>>( rows, cols, g_srcL, g_srcR, g_R_edge, g_match_8, g_w, g_disp);
+	dim3 numbBlocksDisp64(w/16, h/16, 1); 
+ 	int extSize = 3*3*64*sizeof(unsigned int)+6*6*64*sizeof(unsigned short)+16*16*64*sizeof(unsigned short)+4*4*64*sizeof(unsigned int)+4*4*32*sizeof(unsigned char)+4*4*32*sizeof(unsigned int);
+ 	brain3<<<numbBlocksDisp64, threadsPerBlockDisp64, extSize>>>( rows, cols, g_srcL, g_srcR, g_R_edge, g_match_8, g_w, g_disp, 1, 1000*256);
+
+ 	cudaUnbindTexture(tex2Dleft);
+ 	cudaUnbindTexture(tex2Dright);
  	//perform Extended 2x2 maching 
  	//
 	//	1|2|1
@@ -512,14 +451,25 @@ void cv::gpu::mj::disp3(const int rows,const int cols, unsigned char *g_srcL, un
 	//
 	// and mix it with proportional 16 and 32 block 
 	
-
-	dim3 threadsPerBlock4(4, 4);
-	dim3 numbBlocks4(N/ threadsPerBlock4.x,M/ threadsPerBlock4.y); 
-	cudaDeviceSynchronize();
-	//median5x5Edge<<<numbBlocks4, threadsPerBlock4>>>(rows, cols, g_L_edge, g_edgeMached,  g_disp);
-	
 }
-
+void cv::gpu::mj::dispToUdepth(const int rows,const int cols, const int uRows,const int uCols, unsigned char *g_disp, unsigned char *g_udepth, unsigned char** tempsC){
+	
+	int N = WIDTH;
+	int M = HEIGHT;
+	
+	unsigned char* g_udisp = tempsC[0];
+	const int size = sizeof(unsigned char)*rows*cols;
+	cudaMemset(g_udisp, 0, size);
+	 	
+	dim3 threadsPerBlockUDisp(1, 480);
+	dim3 numbBlocksUDisp(N/1, M/480); 
+	udisp<<<threadsPerBlockUDisp, numbBlocksUDisp>>>(rows, cols, g_disp, g_udisp);
+	cudaDeviceSynchronize();
+	cudaMemset(g_udepth, 0, size);
+	dim3 threadsPerBlockUDepth(1, 256);
+	dim3 numbBlocksUDepth(N/1, M/256);
+	udispToUdepth<<<threadsPerBlockUDepth,numbBlocksUDepth>>>(uRows, uCols, g_udisp, g_udepth);
+}
 
 
 
@@ -559,11 +509,23 @@ void cv::gpu::mj::cudaMemcpyDtoH(unsigned char *src, unsigned char* dest, int si
 
 void cv::gpu::mj::cudaInit(unsigned char** g_src1, unsigned char** g_src2, unsigned char** g_disp, const int rows, const int cols){
 	
+	size_t offset = 0;
+    
 	const int size = sizeof(unsigned char)*rows*cols;
 
 	cudaMalloc((void **)g_src1, size);
 	cudaMalloc((void **)g_src2, size);
 	cudaMalloc((void **)g_disp, size);
+	
+	tex2Dleft.addressMode[0] = cudaAddressModeClamp;
+    tex2Dleft.addressMode[1] = cudaAddressModeClamp;
+    tex2Dleft.filterMode     = cudaFilterModePoint;
+    tex2Dleft.normalized     = false;
+    tex2Dright.addressMode[0] = cudaAddressModeClamp;
+    tex2Dright.addressMode[1] = cudaAddressModeClamp;
+    tex2Dright.filterMode     = cudaFilterModePoint;
+    tex2Dright.normalized     = false;
+
 	
 }
 

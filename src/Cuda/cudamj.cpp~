@@ -37,7 +37,7 @@ void cv::gpu::dispmj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* 
 		//unsigned char* dataOut = out.data;
 		cv::gpu::mj::cudaMemcpyHtoD(dataL, l, 640*480*sizeof(unsigned char));
 		cv::gpu::mj::cudaMemcpyHtoD(dataR, r, 640*480*sizeof(unsigned char));
-		cv::gpu::mj::disp(480, 640, l, r, disp, temps);
+		//cv::gpu::mj::disp(480, 640, l, r, disp, temps);
 		cv::gpu::mj::cudaMemcpyDtoH(disp, data, 640*480*sizeof(unsigned char));
 		//cv::gpu::mj::cudaMemcpyDtoH(l, dataL, 640*480*sizeof(unsigned char));
 }
@@ -49,7 +49,7 @@ void cv::gpu::disp2mj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char*
 		//unsigned char* dataOut = out.data;
 		cv::gpu::mj::cudaMemcpyHtoD(dataL, l, 640*480*sizeof(unsigned char));
 		cv::gpu::mj::cudaMemcpyHtoD(dataR, r, 640*480*sizeof(unsigned char));
-		cv::gpu::mj::disp2(480, 640, l, r, disp, tempsC, tempsI);
+		//cv::gpu::mj::disp2(480, 640, l, r, disp, tempsC, tempsI);
 		cv::gpu::mj::cudaMemcpyDtoH(disp, data, 640*480*sizeof(unsigned char));
 		//cv::gpu::mj::cudaMemcpyDtoH(l, dataL, 640*480*sizeof(unsigned char));
 }
@@ -106,7 +106,7 @@ void cv::gpu::cudaDestroyDisp3(unsigned char* g_src1, unsigned char* g_src2, uns
 
 
 
-unsigned char** cv::gpu::initDisp(const int size){
+/*unsigned char** cv::gpu::initDisp(const int size){
 	return cv::gpu::mj::initDisp(size);
 }
 
@@ -115,12 +115,12 @@ unsigned int** cv::gpu::initDisp2I(const int size){
 }
 unsigned char** cv::gpu::initDisp2C(const int size){
 	return cv::gpu::mj::initDisp2C(size);
-}
+}*/
 
 unsigned short** cv::gpu::initDisp3US(const int size){
-	return cv::gpu::mj::initDisp2US(size);
+	return cv::gpu::mj::initDisp3US(size);
 }
 unsigned char** cv::gpu::initDisp3C(const int size){
-	return cv::gpu::mj::initDisp2C(size);
+	return cv::gpu::mj::initDisp3C(size);
 }
 

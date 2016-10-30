@@ -23,6 +23,8 @@ namespace cv{
 			unsigned char** initDisp3C(const int size);
 			void disp2(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out, unsigned char** tempsC, unsigned int** tempsI);
 			void disp3(const int rows,const int cols, unsigned char *srcL, unsigned char *srcR, unsigned char * out, unsigned char** tempsC, unsigned short** tempsUS);
+			void dispToUdepth(const int rows,const int cols, const int uRows,const int uCols, unsigned char *g_disp, unsigned char *g_udepth, unsigned char** tempsC);
+
 		}
 	}	
 }

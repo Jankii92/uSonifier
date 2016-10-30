@@ -214,7 +214,7 @@ void CameraCtrl::Update()
 	//printf( "t=%1.4f, th=%1.4f\n", t, th);
 
 	const float histeresisOld = 20;
-	const float histeresisNew = 95;
+	const float histeresisNew = 40;//95;
 
 	histeresis = (th < 1)*histeresisNew + (th>=1)*histeresisOld;
 	
@@ -232,13 +232,13 @@ void CameraCtrl::Update()
 
 	if( out > 200 )
 	{
-		gain     = out - 200;
-		diodes   = 100;
+		gain     = 100;//out - 200;
+		diodes   = out - 200;
 		exposure = 100;
 	}
 	else if( out > 100 )
 	{
-		gain     = 0;
+		gain     = out - 100;
 		diodes   = out - 100;
 		exposure = 100;
 	}

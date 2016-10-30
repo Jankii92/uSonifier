@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ubuntu/Documents/Git/uSonifier/src/PID/cameractrl.cpp
+assert.h
+-
+cameractrl.h
+/home/ubuntu/Documents/Git/uSonifier/src/PID/cameractrl.h
+
+/home/ubuntu/Documents/Git/uSonifier/src/PID/cameractrl.h
+opencv2/opencv.hpp
+-
+stdio.h
+-
+

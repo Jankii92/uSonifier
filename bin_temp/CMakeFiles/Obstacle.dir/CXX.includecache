@@ -1,0 +1,14 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/ubuntu/Documents/Git/uSonifier/src/Scene/Obstacle.cpp
+Obstacle.h
+/home/ubuntu/Documents/Git/uSonifier/src/Scene/Obstacle.h
+
+/home/ubuntu/Documents/Git/uSonifier/src/Scene/Obstacle.h
+

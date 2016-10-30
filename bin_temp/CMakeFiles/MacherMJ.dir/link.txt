@@ -1,0 +1,2 @@
+/usr/bin/ar cr libMacherMJ.a  CMakeFiles/MacherMJ.dir/src/Cuda/./MacherMJ_generated_macher.cu.o
+/usr/bin/ranlib libMacherMJ.a

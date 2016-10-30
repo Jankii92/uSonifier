@@ -1,0 +1,9 @@
+%YAML:1.0
+InitParams:
+   mode: PERFORMANCE
+   unit: MILLIMETER
+   verbose: true
+   device: "0"
+   minimumDistance: "586.291870"
+   disable_self_calib: false
+   vflip: false

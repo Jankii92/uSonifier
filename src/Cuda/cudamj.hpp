@@ -8,7 +8,7 @@ namespace cv{
 		void sobelmj(Mat &src, Mat &out, const int mode);
 		void dispmj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* r, unsigned char* disp, unsigned char** temps);
 		void disp2mj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* r, unsigned char* disp, unsigned char** tempsC,unsigned int** tempsI);
-		void disp3mj(Mat &L, Mat &R, Mat &Out, unsigned char* l, unsigned char* r, unsigned char* disp, unsigned char** tempsC,unsigned short** tempsUS);
+		void disp3mj(Mat &L, Mat &R, Mat &Out, Mat &uDepth, unsigned char* l, unsigned char* r, unsigned char* disp, unsigned char** tempsC,unsigned short** tempsUS);
 		void realocHostMem(Mat &in);
 		void setImageForCuda(Mat &mat, int size);
 		void cpyImageForCuda(unsigned char* src, Mat &dest);

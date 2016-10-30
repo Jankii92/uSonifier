@@ -13,14 +13,15 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/gpu/gpu.hpp>
+#include <opencv2/ximgproc.hpp>
 
 
 
 #define OBSTACLE 1
 #define WALL 2
 
-#define WIDTH	640/2
-#define HEIGHT	480/2
+#define WIDTH	640
+#define HEIGHT	480
 #define ACC 	0.3
 #define	DIST	20
 #define TH		50

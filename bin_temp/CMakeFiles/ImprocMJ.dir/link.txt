@@ -1,0 +1,2 @@
+/usr/bin/ar cr libImprocMJ.a  CMakeFiles/ImprocMJ.dir/src/Cuda/./ImprocMJ_generated_improc.cu.o
+/usr/bin/ranlib libImprocMJ.a
